@@ -6,7 +6,8 @@ const {
     Events,
     REST,
     Routes,
-    SlashCommandBuilder
+    SlashCommandBuilder,
+    PermissionsBitField
 } = require('discord.js');
 
 const token = process.env.DISCORD_TOKEN;
@@ -75,6 +76,11 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     if (interaction.commandName === 'say') {
+        if (!interaction.member || !interaction.member.permissions || !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            await interaction.reply({ content: 'Apenas administradores podem usar este comando.', ephemeral: true });
+            return;
+        }
+
         const targetChannel = interaction.options.getChannel('channel', true);
         const message = interaction.options.getString('message', true);
 
