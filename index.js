@@ -32,8 +32,28 @@ if (!token) {
 const rest = new REST({ version: '10' }).setToken(token);
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
+
+// Helper to collect a single message from a specific user in a channel
+function collectResponse(channel, userId, time = 60000) {
+    return new Promise(resolve => {
+        const filter = m => m.author.id === userId;
+        const collector = channel.createMessageCollector({ filter, time, max: 1 });
+
+        collector.on('collect', m => {
+            resolve(m);
+        });
+
+        collector.on('end', collected => {
+            if (!collected || collected.size === 0) resolve(null);
+        });
+    });
+}
 
 async function registerCommands() {
     if (!clientId || !guildId) {
@@ -70,82 +90,65 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
-        // Ask which channel to send to (public)
+        if (!interaction.channel || !interaction.channel.isTextBased()) {
+            await interaction.reply({ content: 'Este comando deve ser usado em um canal de texto.', ephemeral: true });
+            return;
+        }
+
+        // Step 1: ask which channel
         await interaction.reply({ content: 'Qual canal você deseja enviar?', ephemeral: false });
 
-        const filter = m => m.author.id === interaction.user.id;
+        const channelAnswer = await collectResponse(interaction.channel, interaction.user.id, 60000);
+        if (!channelAnswer) {
+            await interaction.followUp({ content: 'Tempo esgotado. Cancelando.', ephemeral: false });
+            return;
+        }
 
-        // First collector: channel selection
-        const channelCollector = interaction.channel.createMessageCollector({ filter, time: 60000, max: 1 });
+        let target = null;
+        if (channelAnswer.mentions && channelAnswer.mentions.channels && channelAnswer.mentions.channels.size > 0) {
+            target = channelAnswer.mentions.channels.first();
+        }
 
-        channelCollector.on('collect', async (collected) => {
-            const answer = collected.first();
-            let target = null;
-
-            // Try channel mention
-            if (answer.mentions && answer.mentions.channels && answer.mentions.channels.size > 0) {
-                target = answer.mentions.channels.first();
+        if (!target) {
+            const raw = channelAnswer.content.trim();
+            if (/^\d+$/.test(raw)) target = interaction.guild.channels.cache.get(raw);
+            else {
+                const name = raw.replace(/^#/, '');
+                target = interaction.guild.channels.cache.find(ch => ch.name === name && ch.isTextBased());
             }
+        }
 
-            // Try ID
-            if (!target) {
-                const id = answer.content.trim();
-                if (/^\d+$/.test(id)) {
-                    target = interaction.guild.channels.cache.get(id);
-                }
-            }
+        if (!target || !target.isTextBased()) {
+            await interaction.followUp({ content: 'Canal inválido ou não é um canal de texto. Cancelando.', ephemeral: false });
+            return;
+        }
 
-            // Try name
-            if (!target) {
-                const name = answer.content.trim();
-                target = interaction.guild.channels.cache.find(ch => ch.name === name || ch.name === name.replace(/^#/, ''));
-            }
+        const me = interaction.guild.members.me || interaction.guild.members.cache.get(client.user.id);
+        if (!target.permissionsFor(me) || !target.permissionsFor(me).has(PermissionFlagsBits.SendMessages)) {
+            await interaction.followUp({ content: 'Não tenho permissão para enviar mensagens nesse canal. Cancelando.', ephemeral: false });
+            return;
+        }
 
-            if (!target || !target.isTextBased()) {
-                await interaction.followUp({ content: 'Canal inválido ou não é um canal de texto. Cancelando.', ephemeral: false });
-                return;
-            }
+        // Step 2: ask for the message content
+        await interaction.followUp({ content: 'Qual será a mensagem?', ephemeral: false });
 
-            // Check bot permissions in target channel
-            const me = interaction.guild.members.me || interaction.guild.members.cache.get(client.user.id);
-            if (!target.permissionsFor(me).has(PermissionFlagsBits.SendMessages)) {
-                await interaction.followUp({ content: 'Não tenho permissão para enviar mensagens nesse canal. Cancelando.', ephemeral: false });
-                return;
-            }
+        const msgAnswer = await collectResponse(interaction.channel, interaction.user.id, 60000);
+        if (!msgAnswer) {
+            await interaction.followUp({ content: 'Tempo esgotado. Cancelando.', ephemeral: false });
+            return;
+        }
 
-            // Ask for the message
-            await interaction.followUp({ content: 'Qual será a mensagem?', ephemeral: false });
+        try {
+            const sendOptions = {};
+            if (msgAnswer.content) sendOptions.content = msgAnswer.content;
+            if (msgAnswer.attachments && msgAnswer.attachments.size > 0) sendOptions.files = Array.from(msgAnswer.attachments.values()).map(a => a.url);
 
-            const messageCollector = interaction.channel.createMessageCollector({ filter, time: 60000, max: 1 });
-
-            messageCollector.on('collect', async (msgs) => {
-                const userMsg = msgs.first();
-
-                try {
-                    const sendOptions = {};
-                    if (userMsg.content) sendOptions.content = userMsg.content;
-                    if (userMsg.attachments && userMsg.attachments.size > 0) sendOptions.files = Array.from(userMsg.attachments.values()).map(a => a.url);
-
-                    await target.send(sendOptions);
-                    await interaction.followUp({ content: 'Mensagem enviada com sucesso!', ephemeral: false });
-                } catch (err) {
-                    console.error('Erro ao enviar mensagem para o canal alvo:', err);
-                    await interaction.followUp({ content: 'Erro ao enviar a mensagem. Verifique permissões e tente novamente.', ephemeral: false });
-                }
-            });
-
-            messageCollector.on('end', (_, reason) => {
-                if (reason === 'time') {
-                    interaction.followUp({ content: 'Tempo esgotado. Cancelando.', ephemeral: false });
-                }
-            });
-        });
-
-        channelCollector.on('end', (_, reason) => {
-            if (reason === 'time') {
-                interaction.followUp({ content: 'Tempo esgotado. Cancelando.', ephemeral: false });
-            }
-        });
+            await target.send(sendOptions);
+            await interaction.followUp({ content: 'Mensagem enviada com sucesso!', ephemeral: false });
+        } catch (err) {
+            console.error('Erro ao enviar mensagem para o canal alvo:', err);
+            await interaction.followUp({ content: 'Erro ao enviar a mensagem. Verifique permissões e tente novamente.', ephemeral: false });
+        }
     }
 });
 
