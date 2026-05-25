@@ -7,7 +7,8 @@ const {
     REST,
     Routes,
     SlashCommandBuilder,
-    PermissionsBitField
+    PermissionsBitField,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const token = process.env.DISCORD_TOKEN;
@@ -20,19 +21,7 @@ const commands = [
         .setDescription('Responde com Pong!'),
     new SlashCommandBuilder()
         .setName('say')
-        .setDescription('Enviar uma mensagem em outro canal')
-        .addChannelOption(option =>
-            option
-                .setName('channel')
-                .setDescription('Canal para enviar a mensagem')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option
-                .setName('message')
-                .setDescription('Mensagem que o bot deve enviar')
-                .setRequired(true)
-        )
+        .setDescription('Enviar uma mensagem (fluxo interativo)')
 ].map(command => command.toJSON());
 
 if (!token) {
@@ -81,19 +70,82 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
-        const targetChannel = interaction.options.getChannel('channel', true);
-        const message = interaction.options.getString('message', true);
+        // Ask which channel to send to (public)
+        await interaction.reply({ content: 'Qual canal você deseja enviar?', ephemeral: false });
 
-        if (!targetChannel || !targetChannel.isTextBased()) {
-            await interaction.reply({
-                content: 'Por favor escolha um canal de texto válido.',
-                ephemeral: true
+        const filter = m => m.author.id === interaction.user.id;
+
+        // First collector: channel selection
+        const channelCollector = interaction.channel.createMessageCollector({ filter, time: 60000, max: 1 });
+
+        channelCollector.on('collect', async (collected) => {
+            const answer = collected.first();
+            let target = null;
+
+            // Try channel mention
+            if (answer.mentions && answer.mentions.channels && answer.mentions.channels.size > 0) {
+                target = answer.mentions.channels.first();
+            }
+
+            // Try ID
+            if (!target) {
+                const id = answer.content.trim();
+                if (/^\d+$/.test(id)) {
+                    target = interaction.guild.channels.cache.get(id);
+                }
+            }
+
+            // Try name
+            if (!target) {
+                const name = answer.content.trim();
+                target = interaction.guild.channels.cache.find(ch => ch.name === name || ch.name === name.replace(/^#/, ''));
+            }
+
+            if (!target || !target.isTextBased()) {
+                await interaction.followUp({ content: 'Canal inválido ou não é um canal de texto. Cancelando.', ephemeral: false });
+                return;
+            }
+
+            // Check bot permissions in target channel
+            const me = interaction.guild.members.me || interaction.guild.members.cache.get(client.user.id);
+            if (!target.permissionsFor(me).has(PermissionFlagsBits.SendMessages)) {
+                await interaction.followUp({ content: 'Não tenho permissão para enviar mensagens nesse canal. Cancelando.', ephemeral: false });
+                return;
+            }
+
+            // Ask for the message
+            await interaction.followUp({ content: 'Qual será a mensagem?', ephemeral: false });
+
+            const messageCollector = interaction.channel.createMessageCollector({ filter, time: 60000, max: 1 });
+
+            messageCollector.on('collect', async (msgs) => {
+                const userMsg = msgs.first();
+
+                try {
+                    const sendOptions = {};
+                    if (userMsg.content) sendOptions.content = userMsg.content;
+                    if (userMsg.attachments && userMsg.attachments.size > 0) sendOptions.files = Array.from(userMsg.attachments.values()).map(a => a.url);
+
+                    await target.send(sendOptions);
+                    await interaction.followUp({ content: 'Mensagem enviada com sucesso!', ephemeral: false });
+                } catch (err) {
+                    console.error('Erro ao enviar mensagem para o canal alvo:', err);
+                    await interaction.followUp({ content: 'Erro ao enviar a mensagem. Verifique permissões e tente novamente.', ephemeral: false });
+                }
             });
-            return;
-        }
 
-        await targetChannel.send({ content: message });
-        await interaction.reply({ content: 'Mensagem enviada!', ephemeral: true });
+            messageCollector.on('end', (_, reason) => {
+                if (reason === 'time') {
+                    interaction.followUp({ content: 'Tempo esgotado. Cancelando.', ephemeral: false });
+                }
+            });
+        });
+
+        channelCollector.on('end', (_, reason) => {
+            if (reason === 'time') {
+                interaction.followUp({ content: 'Tempo esgotado. Cancelando.', ephemeral: false });
+            }
+        });
     }
 });
 
