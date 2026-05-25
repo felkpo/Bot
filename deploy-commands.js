@@ -1,26 +1,41 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
 const commands = [
     new SlashCommandBuilder()
         .setName('ping')
-        .setDescription('Responde com Pong!')
-];
-const { Client, GatewayIntentBits } = require('discord.js');
+        .setDescription('Responde com Pong!'),
+    new SlashCommandBuilder()
+        .setName('say')
+        .setDescription('Enviar uma mensagem em outro canal')
+        .addChannelOption(option =>
+            option
+                .setName('channel')
+                .setDescription('Canal para enviar a mensagem')
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName('message')
+                .setDescription('Mensagem que o bot deve enviar')
+                .setRequired(true)
+        )
+].map(command => command.toJSON());
 
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
-});
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
-client.once('clientReady', () => {
-    console.log(`Bot online como ${client.user.tag}`);
-});
+(async () => {
+    try {
+        console.log('Registrando comandos de barra...');
 
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-    console.error('Missing DISCORD_TOKEN in environment');
-    process.exit(1);
-}
+        await rest.put(
+            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+            { body: commands }
+        );
 
-client.login(token);
+        console.log('Comandos registrados com sucesso.');
+    } catch (error) {
+        console.error('Erro ao registrar comandos:', error);
+    }
+})();
