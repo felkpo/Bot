@@ -20,8 +20,23 @@ const commands = [
         .setName('ping')
         .setDescription('Responde com Pong!'),
     new SlashCommandBuilder()
+        .setName('sayrapido')
+        .setDescription('Enviar uma mensagem rápida via opções do comando')
+        .addChannelOption(option =>
+            option
+                .setName('channel')
+                .setDescription('Canal para enviar a mensagem')
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName('message')
+                .setDescription('Mensagem que o bot deve enviar')
+                .setRequired(true)
+        ),
+    new SlashCommandBuilder()
         .setName('say')
-        .setDescription('Enviar uma mensagem (fluxo interativo)')
+        .setDescription('Enviar uma mensagem via modo interativo')
 ].map(command => command.toJSON());
 
 if (!token) {
@@ -43,14 +58,21 @@ const client = new Client({
 function collectResponse(channel, userId, time = 60000) {
     return new Promise(resolve => {
         const filter = m => m.author.id === userId;
+        let resolved = false;
         const collector = channel.createMessageCollector({ filter, time, max: 1 });
 
         collector.on('collect', m => {
-            resolve(m);
+            if (!resolved) {
+                resolved = true;
+                resolve(m);
+            }
         });
 
         collector.on('end', collected => {
-            if (!collected || collected.size === 0) resolve(null);
+            if (!resolved) {
+                resolved = true;
+                resolve(null);
+            }
         });
     });
 }
@@ -81,6 +103,36 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (interaction.commandName === 'ping') {
         await interaction.reply({ content: 'Pong!', ephemeral: true });
+        return;
+    }
+
+    if (interaction.commandName === 'sayrapido') {
+        if (!interaction.member || !interaction.member.permissions || !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            await interaction.reply({ content: 'Apenas administradores podem usar este comando.', ephemeral: true });
+            return;
+        }
+
+        const target = interaction.options.getChannel('channel', true);
+        const message = interaction.options.getString('message', true);
+
+        if (!target || !target.isTextBased()) {
+            await interaction.reply({ content: 'Canal inválido ou não é um canal de texto.', ephemeral: true });
+            return;
+        }
+
+        const me = interaction.guild.members.me || interaction.guild.members.cache.get(client.user.id);
+        if (!target.permissionsFor(me) || !target.permissionsFor(me).has(PermissionFlagsBits.SendMessages)) {
+            await interaction.reply({ content: 'Não tenho permissão para enviar mensagens nesse canal.', ephemeral: true });
+            return;
+        }
+
+        try {
+            await target.send({ content: message });
+            await interaction.reply({ content: 'Mensagem enviada com sucesso!', ephemeral: false });
+        } catch (err) {
+            console.error('Erro ao enviar mensagem no modo rápido:', err);
+            await interaction.reply({ content: 'Erro ao enviar a mensagem. Verifique permissões e tente novamente.', ephemeral: false });
+        }
         return;
     }
 
