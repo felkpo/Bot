@@ -9,6 +9,7 @@ const {
     SlashCommandBuilder,
     PermissionsBitField,
     PermissionFlagsBits
+    ,EmbedBuilder
 } = require('discord.js');
 
 const token = process.env.DISCORD_TOKEN;
@@ -37,6 +38,10 @@ const commands = [
     new SlashCommandBuilder()
         .setName('say')
         .setDescription('Enviar uma mensagem via modo interativo')
+        ,
+    new SlashCommandBuilder()
+        .setName('help')
+        .setDescription('Mostra todos os comandos disponíveis do bot')
 ].map(command => command.toJSON());
 
 if (!token) {
@@ -120,6 +125,57 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (interaction.commandName === 'ping') {
         await interaction.reply({ content: 'Pong!', ephemeral: true });
+        return;
+    }
+
+    if (interaction.commandName === 'help') {
+        const isAdmin = !!(interaction.member && interaction.member.permissions && interaction.member.permissions.has(PermissionsBitField.Flags.Administrator));
+
+        const allCommands = [
+            {
+                emoji: '🏓',
+                name: '/ping',
+                desc: 'Responde com Pong',
+                example: '/ping',
+                admin: false
+            },
+            {
+                emoji: '⚡',
+                name: '/sayrapido',
+                desc: 'Envia uma mensagem rápida em um canal escolhido',
+                example: '/sayrapido #canal Mensagem curta',
+                admin: true
+            },
+            {
+                emoji: '✉️',
+                name: '/say',
+                desc: 'Modo interativo para enviar mensagens complexas (formatação, quebras, etc.)',
+                example: '/say (executa fluxo interativo)',
+                admin: true
+            },
+            {
+                emoji: '❓',
+                name: '/help',
+                desc: 'Mostra todos os comandos disponíveis',
+                example: '/help',
+                admin: false
+            }
+        ];
+
+        const visible = allCommands.filter(c => isAdmin ? true : !c.admin);
+
+        const embed = new EmbedBuilder()
+            .setTitle('Central de Comandos')
+            .setDescription('Lista de comandos disponíveis e exemplos de uso')
+            .setColor(0x2F3136)
+            .setTimestamp(new Date())
+            .setFooter({ text: 'Use os comandos com responsabilidade' });
+
+        for (const cmd of visible) {
+            embed.addFields({ name: `${cmd.emoji}  ${cmd.name}`, value: `**Descrição:** ${cmd.desc}\n**Exemplo:** \`${cmd.example}\`` });
+        }
+
+        await interaction.reply({ embeds: [embed], ephemeral: false });
         return;
     }
 
