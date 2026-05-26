@@ -16,10 +16,15 @@ const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
 
-const commands = [
+/**
+ * Command definitions (organized)
+ * Keep SlashCommandBuilder objects here and convert to JSON when registering.
+ */
+const commandBuilders = [
     new SlashCommandBuilder()
         .setName('ping')
         .setDescription('Responde com Pong!'),
+
     new SlashCommandBuilder()
         .setName('sayrapido')
         .setDescription('Enviar uma mensagem rápida via opções do comando')
@@ -35,14 +40,17 @@ const commands = [
                 .setDescription('Mensagem que o bot deve enviar')
                 .setRequired(true)
         ),
+
     new SlashCommandBuilder()
         .setName('say')
-        .setDescription('Enviar uma mensagem via modo interativo')
-        ,
+        .setDescription('Enviar uma mensagem via modo interativo'),
+
     new SlashCommandBuilder()
         .setName('help')
         .setDescription('Mostra todos os comandos disponíveis do bot')
-].map(command => command.toJSON());
+];
+
+const commands = commandBuilders.map(c => c.toJSON());
 
 if (!token) {
     console.error('Missing DISCORD_TOKEN in environment');
@@ -83,31 +91,31 @@ function collectResponse(channel, userId, time = 60000) {
 }
 
 async function registerCommands() {
-    if (!clientId || !guildId) {
-        console.warn('CLIENT_ID or GUILD_ID is missing. Skipping command registration.');
+    if (!clientId) {
+        console.warn('CLIENT_ID is missing. Skipping command registration.');
         return;
     }
 
-        /*
-            NOTE: Guild (server) commands vs Global (application) commands
+    /*
+      NOTE: Guild (server) commands vs Global (application) commands
 
-            - Guild commands (Routes.applicationGuildCommands) register commands
-                only for a specific guild. They update instantly and are useful for
-                development and testing.
+      - Guild commands (Routes.applicationGuildCommands) register commands
+        only for a specific guild. They update instantly and are useful for
+        development and testing.
 
-            - Global/application commands (Routes.applicationCommands) register
-                commands for the entire application and become available in every
-                server where the bot is present. They can take up to an hour to
-                propagate across Discord.
+      - Global/application commands (Routes.applicationCommands) register
+        commands for the entire application and become available in every
+        server where the bot is present. They can take up to an hour to
+        propagate across Discord.
 
-            We're using global commands so that slash commands work in all servers
-            where the bot is invited. Keep in mind propagation delay when changing
-            command definitions.
-        */
+      We're using global commands so that slash commands work in all servers
+      where the bot is invited. Keep in mind propagation delay when changing
+      command definitions.
+    */
 
-        console.log('Registrando comandos globalmente (application commands)...');
-        await rest.put(Routes.applicationCommands(clientId), { body: commands });
-        console.log('Comandos registrados (pode demorar até ~1 hora para propagar).');
+    console.log('Registrando comandos globais...');
+    await rest.put(Routes.applicationCommands(clientId), { body: commands });
+    console.log('Comandos registrados com sucesso!');
 }
 
 client.once(Events.ClientReady, async () => {
