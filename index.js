@@ -83,9 +83,26 @@ async function registerCommands() {
         return;
     }
 
-    console.log('Registrando comandos de barra...');
-    await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-    console.log('Comandos registrados com sucesso.');
+        /*
+            NOTE: Guild (server) commands vs Global (application) commands
+
+            - Guild commands (Routes.applicationGuildCommands) register commands
+                only for a specific guild. They update instantly and are useful for
+                development and testing.
+
+            - Global/application commands (Routes.applicationCommands) register
+                commands for the entire application and become available in every
+                server where the bot is present. They can take up to an hour to
+                propagate across Discord.
+
+            We're using global commands so that slash commands work in all servers
+            where the bot is invited. Keep in mind propagation delay when changing
+            command definitions.
+        */
+
+        console.log('Registrando comandos globalmente (application commands)...');
+        await rest.put(Routes.applicationCommands(clientId), { body: commands });
+        console.log('Comandos registrados (pode demorar até ~1 hora para propagar).');
 }
 
 client.once(Events.ClientReady, async () => {
