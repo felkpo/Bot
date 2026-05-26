@@ -139,48 +139,43 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.commandName === 'help') {
         const isAdmin = !!(interaction.member && interaction.member.permissions && interaction.member.permissions.has(PermissionsBitField.Flags.Administrator));
 
-        const allCommands = [
-            {
-                emoji: '🏓',
-                name: '/ping',
-                desc: 'Responde com Pong',
-                example: '/ping',
-                admin: false
-            },
-            {
-                emoji: '⚡',
-                name: '/sayrapido',
-                desc: 'Envia uma mensagem rápida em um canal escolhido',
-                example: '/sayrapido #canal Mensagem curta',
-                admin: true
-            },
-            {
-                emoji: '✉️',
-                name: '/say',
-                desc: 'Modo interativo para enviar mensagens complexas (formatação, quebras, etc.)',
-                example: '/say (executa fluxo interativo)',
-                admin: true
-            },
-            {
-                emoji: '❓',
-                name: '/help',
-                desc: 'Mostra todos os comandos disponíveis',
-                example: '/help',
-                admin: false
-            }
-        ];
+        // Map for emojis for known commands; fallback to a generic icon
+        const emojiMap = {
+            ping: '🏓',
+            sayrapido: '⚡',
+            say: '✉️',
+            help: '❓'
+        };
 
-        const visible = allCommands.filter(c => isAdmin ? true : !c.admin);
+        // Commands that require admin privileges
+        const adminCommands = new Set(['say', 'sayrapido']);
+
+        // Use the registered command JSON to build the help list so it's
+        // automatically updated when you change `commandBuilders` above.
+        const visibleCommands = commands.filter(cmd => isAdmin ? true : !adminCommands.has(cmd.name));
 
         const embed = new EmbedBuilder()
             .setTitle('Central de Comandos')
             .setDescription('Lista de comandos disponíveis e exemplos de uso')
-            .setColor(0x2F3136)
+            .setColor(0x5865F2)
             .setTimestamp(new Date())
             .setFooter({ text: 'Use os comandos com responsabilidade' });
 
-        for (const cmd of visible) {
-            embed.addFields({ name: `${cmd.emoji}  ${cmd.name}`, value: `**Descrição:** ${cmd.desc}\n**Exemplo:** \`${cmd.example}\`` });
+        for (const cmd of visibleCommands) {
+            const emoji = emojiMap[cmd.name] || '🛠️';
+
+            // Build a simple example string based on options
+            let example = `/${cmd.name}`;
+            if (cmd.options && cmd.options.length > 0) {
+                const parts = cmd.options.map(opt => {
+                    const n = opt.name;
+                    if (opt.type === 7) return `#${n}`; // CHANNEL
+                    return `<${n}>`;
+                });
+                example += ' ' + parts.join(' ');
+            }
+
+            embed.addFields({ name: `${emoji}  /${cmd.name}`, value: `**Descrição:** ${cmd.description}\n**Exemplo:** \`${example}\`` });
         }
 
         await interaction.reply({ embeds: [embed], ephemeral: false });
