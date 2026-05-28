@@ -373,15 +373,180 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
-        const safeName = sanitizeEmojiName(name);
+        // Helpers for validation and fetching
+        const MAX_EMOJI_BYTES = 256 * 1024; // 256 KB conservative limit
 
-        // Try to create the emoji
+        function validateEmojiName(orig) {
+            const safe = sanitizeEmojiName(orig);
+            const ok = /^[a-z0-9_]{2,32}$/.test(safe);
+            if (!ok) return { valid: false, reason: 'Nome inválido: deve ter 2-32 caracteres alfanuméricos/underscore.', safe };
+            if (safe !== orig.replace(/\s+/g, '_').toLowerCase().replace(/[^a-z0-9_]/g, '')) {
+                // sanitized changed input — warn but still use safe name
+                return { valid: true, reason: 'Nome ajustado para caracteres válidos.', safe };
+            }
+            return { valid: true, reason: null, safe };
+        }
+
+        async function headFetch(url) {
+            try {
+                if (typeof fetch === 'function') {
+                    const res = await fetch(url, { method: 'HEAD' });
+                    if (!res.ok) return { ok: false };
+                    return { ok: true, size: res.headers.get('content-length') ? parseInt(res.headers.get('content-length'), 10) : null, type: res.headers.get('content-type') };
+                } else {
+                    // fallback: no HEAD available
+                    return { ok: false };
+                }
+            } catch (e) {
+                return { ok: false };
+            }
+        }
+
+        async function fetchBuffer(url, maxBytes = MAX_EMOJI_BYTES + 1) {
+            if (typeof fetch === 'function') {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status} when fetching ${url}`);
+                const ab = await res.arrayBuffer();
+                const buf = Buffer.from(ab);
+                return buf;
+            }
+            // If no fetch, try https get full buffer (not implemented fallback)
+            throw new Error('fetch unavailable');
+        }
+
+        function isGifAnimated(buffer) {
+            try {
+                let frames = 0;
+                for (let i = 0; i < buffer.length - 2; i++) {
+                    if (buffer[i] === 0x21 && buffer[i + 1] === 0xF9 && buffer[i + 2] === 0x04) {
+                        frames++;
+                        if (frames > 1) return true;
+                    }
+                }
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Validate name
+        const nameCheck = validateEmojiName(name);
+        if (!nameCheck.valid) {
+            await interaction.followUp({ content: `Nome inválido: ${nameCheck.reason}`, ephemeral: true });
+            return;
+        }
+
+        const safeName = nameCheck.safe;
+
+        // If attachment present, use its metadata to validate size/type
+        let contentType = null;
+        let sizeBytes = null;
+        let buffer = null;
+
         try {
-            await interaction.guild.emojis.create(url, safeName, { reason: `Criado por ${interaction.user.tag}` });
-            await interaction.followUp({ content: 'Emoji adicionado com sucesso!', ephemeral: false });
+            if (imageMsg.attachments && imageMsg.attachments.size > 0) {
+                const att = imageMsg.attachments.first();
+                sizeBytes = att.size || null;
+                contentType = att.contentType || (att.name ? (att.name.toLowerCase().endsWith('.gif') ? 'image/gif' : att.name.toLowerCase().endsWith('.png') ? 'image/png' : att.name.toLowerCase().endsWith('.jpg') || att.name.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' : null) : null);
+                if (sizeBytes && sizeBytes > MAX_EMOJI_BYTES) {
+                    await interaction.followUp({ content: `Arquivo muito grande: o limite aproximado é ${MAX_EMOJI_BYTES} bytes. Arquivo tem ${sizeBytes} bytes.`, ephemeral: false });
+                    return;
+                }
+                // fetch buffer to inspect GIF animation if GIF
+                try {
+                    buffer = await fetchBuffer(att.url, MAX_EMOJI_BYTES + 1);
+                    if (!sizeBytes) sizeBytes = buffer.length;
+                    if (sizeBytes > MAX_EMOJI_BYTES) {
+                        await interaction.followUp({ content: `Arquivo muito grande após download: ${sizeBytes} bytes (limite ${MAX_EMOJI_BYTES}).`, ephemeral: false });
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Não foi possível baixar attachment para validação:', e);
+                }
+            } else {
+                // external URL: try HEAD first
+                const head = await headFetch(url);
+                if (head.ok) {
+                    sizeBytes = head.size;
+                    contentType = head.type;
+                    if (sizeBytes && sizeBytes > MAX_EMOJI_BYTES) {
+                        await interaction.followUp({ content: `Arquivo muito grande: o limite aproximado é ${MAX_EMOJI_BYTES} bytes. Arquivo tem ${sizeBytes} bytes.`, ephemeral: false });
+                        return;
+                    }
+                }
+
+                // fetch buffer to inspect content type/animation if needed
+                try {
+                    buffer = await fetchBuffer(url, MAX_EMOJI_BYTES + 1);
+                    if (buffer && buffer.length > MAX_EMOJI_BYTES) {
+                        await interaction.followUp({ content: `Arquivo muito grande após download: ${buffer.length} bytes (limite ${MAX_EMOJI_BYTES}).`, ephemeral: false });
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Erro ao baixar arquivo para validação:', e);
+                    await interaction.followUp({ content: 'Não foi possível baixar o arquivo para validação. Verifique a URL e tente novamente.', ephemeral: false });
+                    return;
+                }
+            }
+
+            // Validate content type / extension
+            const lowerName = (imageMsg.attachments && imageMsg.attachments.size > 0 && imageMsg.attachments.first().name) ? imageMsg.attachments.first().name.toLowerCase() : url.toLowerCase();
+            const allowedExt = ['.png', '.jpg', '.jpeg', '.gif'];
+            if (!allowedExt.some(ext => lowerName.endsWith(ext))) {
+                await interaction.followUp({ content: 'Formato inválido: aceitamos png, jpg, jpeg, gif.', ephemeral: false });
+                return;
+            }
+
+            // Check GIF animation vs guild boosts
+            if ((contentType && contentType.includes('gif')) || lowerName.endsWith('.gif')) {
+                const animated = buffer ? isGifAnimated(buffer) : true; // assume animated if we couldn't inspect
+                if (animated && (!interaction.guild.premiumTier || interaction.guild.premiumTier === 0)) {
+                    await interaction.followUp({ content: 'GIF animado detectado, mas o servidor não tem boosts suficientes para emojis animados. Peça para aumentar o nível de boost.', ephemeral: false });
+                    return;
+                }
+            }
+
+            // Finally attempt creation with detailed try/catch
+            try {
+                const created = await interaction.guild.emojis.create(url, safeName, { reason: `Criado por ${interaction.user.tag}` });
+                await interaction.followUp({ content: `Emoji adicionado com sucesso: <:${created.name}:${created.id}>`, ephemeral: false });
+            } catch (err) {
+                // Detailed error analysis
+                console.error('Erro completo ao criar emoji:', err);
+                // Discord API HTTP status checks
+                const status = err && err.status ? err.status : err && err.httpStatus ? err.httpStatus : null;
+                const code = err && err.code ? err.code : null;
+
+                if (status === 413) {
+                    await interaction.followUp({ content: 'Falha: arquivo muito grande (resposta 413 do Discord).', ephemeral: false });
+                    return;
+                }
+
+                if (code === 50035) {
+                    await interaction.followUp({ content: 'Falha: dados inválidos enviados para a API do Discord (50035). Verifique o nome do emoji ou o arquivo.', ephemeral: false });
+                    return;
+                }
+
+                // Generic message parsing
+                const msg = (err && err.message) ? err.message.toLowerCase() : '';
+                if (msg.includes('maximum number of emojis') || msg.includes('exceeded the maximum')) {
+                    await interaction.followUp({ content: 'Falha: limite de emojis atingido no servidor.', ephemeral: false });
+                    return;
+                }
+
+                if (msg.includes('permission') || status === 403) {
+                    await interaction.followUp({ content: 'Falha: permissão insuficiente para criar emojis. Necessário Manage Emojis and Stickers.', ephemeral: false });
+                    return;
+                }
+
+                // Fallback: show API error message for debugging
+                await interaction.followUp({ content: `Erro da API do Discord: ${err.message || String(err)} (ver console para detalhes)`, ephemeral: false });
+            }
+
         } catch (err) {
-            console.error('Erro ao criar emoji:', err);
-            await interaction.followUp({ content: 'Erro ao adicionar emoji. Verifique permissões, limite do servidor e o formato do arquivo (GIFs animados requerem boosts).', ephemeral: false });
+            console.error('Erro durante validação/adicionar emoji:', err);
+            await interaction.followUp({ content: `Erro inesperado: ${err.message || String(err)} — ver console para detalhes.`, ephemeral: false });
+            return;
         }
     }
 });
