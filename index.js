@@ -100,6 +100,26 @@ function collectResponse(channel, userId, time = 60000) {
     });
 }
 
+// Sanitize emoji name to valid characters and length
+function sanitizeEmojiName(name) {
+    if (!name) return 'emoji';
+    // replace spaces with underscore, keep alphanumeric and underscores
+    const s = name.replace(/\s+/g, '_').toLowerCase().replace(/[^a-z0-9_]/g, '');
+    return s.slice(0, 32) || 'emoji';
+}
+
+// Estimate emoji limit based on guild premium tier
+function getEmojiLimit(guild) {
+    // Guild premium tiers: 0=None,1=Tier1,2=Tier2,3=Tier3
+    const tier = (guild && guild.premiumTier) ? guild.premiumTier : 0;
+    switch (tier) {
+        case 3: return 250;
+        case 2: return 150;
+        case 1: return 100;
+        default: return 50;
+    }
+}
+
 async function registerCommands() {
     if (!clientId) {
         console.warn('CLIENT_ID is missing. Skipping command registration.');
@@ -309,12 +329,12 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
-        // Quick limit check (servers start with ~50 emoji slots; boosted servers have more)
+        // Check emoji limit using guild's premium tier for a more accurate cap
         try {
             const existing = await interaction.guild.emojis.fetch();
-            const approxLimit = 50; // conservative baseline
-            if (existing.size >= approxLimit) {
-                await interaction.reply({ content: 'Parece que o servidor atingiu o limite aproximado de emojis. Tente liberar espaço antes de adicionar.', ephemeral: true });
+            const limit = getEmojiLimit(interaction.guild);
+            if (existing.size >= limit) {
+                await interaction.reply({ content: `O servidor já possui ${existing.size} emojis e o limite aproximado é ${limit}. Libere espaço antes de adicionar.`, ephemeral: true });
                 return;
             }
         } catch (err) {
@@ -323,7 +343,7 @@ client.on(Events.InteractionCreate, async interaction => {
         }
 
         // Ask the user to send the image
-        await interaction.reply({ content: 'Envie a imagem do emoji (png, jpg, jpeg, gif).', ephemeral: false });
+        await interaction.reply({ content: 'Envie a imagem do emoji (png, jpg, jpeg, gif) — como anexo ou link.', ephemeral: false });
 
         const imageMsg = await collectResponse(interaction.channel, interaction.user.id, 30000);
         if (!imageMsg) {
@@ -331,27 +351,37 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
-        if (!imageMsg.attachments || imageMsg.attachments.size === 0) {
-            await interaction.followUp({ content: 'Nenhum arquivo detectado. Certifique-se de anexar uma imagem. Cancelando.', ephemeral: false });
+        // Determine image URL: prefer attachment, fallback to URL in message
+        let url = null;
+        if (imageMsg.attachments && imageMsg.attachments.size > 0) {
+            url = imageMsg.attachments.first().url;
+        } else {
+            // try to find URL in content
+            const urlMatch = (imageMsg.content || '').trim().match(/https?:\/\/[^\s]+/i);
+            if (urlMatch) url = urlMatch[0];
+        }
+
+        if (!url) {
+            await interaction.followUp({ content: 'Nenhum arquivo ou link detectado. Certifique-se de anexar ou enviar uma URL válida. Cancelando.', ephemeral: false });
             return;
         }
 
-        const attachment = imageMsg.attachments.first();
-        const url = attachment.url;
-        const nameLower = (attachment.name || url).toLowerCase();
+        const lower = (imageMsg.attachments && imageMsg.attachments.size > 0 && imageMsg.attachments.first().name) ? imageMsg.attachments.first().name.toLowerCase() : url.toLowerCase();
         const allowed = ['.png', '.jpg', '.jpeg', '.gif'];
-        if (!allowed.some(ext => nameLower.endsWith(ext))) {
+        if (!allowed.some(ext => lower.endsWith(ext))) {
             await interaction.followUp({ content: 'Arquivo não suportado. Aceitamos: png, jpg, jpeg, gif.', ephemeral: false });
             return;
         }
 
+        const safeName = sanitizeEmojiName(name);
+
         // Try to create the emoji
         try {
-            await interaction.guild.emojis.create(url, name);
+            await interaction.guild.emojis.create(url, safeName, { reason: `Criado por ${interaction.user.tag}` });
             await interaction.followUp({ content: 'Emoji adicionado com sucesso!', ephemeral: false });
         } catch (err) {
             console.error('Erro ao criar emoji:', err);
-            await interaction.followUp({ content: 'Erro ao adicionar emoji. Verifique permissões, limite do servidor e o formato do arquivo.', ephemeral: false });
+            await interaction.followUp({ content: 'Erro ao adicionar emoji. Verifique permissões, limite do servidor e o formato do arquivo (GIFs animados requerem boosts).', ephemeral: false });
         }
     }
 });
