@@ -1,0 +1,1 @@
+Use object form for guild.emojis.create ({ attachment, name }) and clean up addemoji handler
