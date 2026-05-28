@@ -48,6 +48,16 @@ const commandBuilders = [
     new SlashCommandBuilder()
         .setName('help')
         .setDescription('Mostra todos os comandos disponíveis do bot')
+    ,
+    new SlashCommandBuilder()
+        .setName('addemoji')
+        .setDescription('Adiciona um emoji ao servidor a partir de uma imagem (fluxo interativo)')
+        .addStringOption(opt =>
+            opt
+                .setName('name')
+                .setDescription('Nome do emoji (ex: prussia)')
+                .setRequired(true)
+        )
 ];
 
 const commands = commandBuilders.map(c => c.toJSON());
@@ -276,6 +286,72 @@ client.on(Events.InteractionCreate, async interaction => {
         } catch (err) {
             console.error('Erro ao enviar mensagem para o canal alvo:', err);
             await interaction.followUp({ content: 'Erro ao enviar a mensagem. Verifique permissões e tente novamente.', ephemeral: false });
+        }
+    }
+
+    if (interaction.commandName === 'addemoji') {
+        // Admin check
+        if (!interaction.member || !interaction.member.permissions || !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            await interaction.reply({ content: 'Apenas administradores podem usar este comando.', ephemeral: true });
+            return;
+        }
+
+        if (!interaction.guild) {
+            await interaction.reply({ content: 'Este comando só pode ser usado em um servidor (guild).', ephemeral: true });
+            return;
+        }
+
+        const name = interaction.options.getString('name', true);
+
+        const me = interaction.guild.members.me || interaction.guild.members.cache.get(client.user.id);
+        if (!me || !me.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
+            await interaction.reply({ content: 'Não tenho permissão `Manage Emojis and Stickers`.', ephemeral: true });
+            return;
+        }
+
+        // Quick limit check (servers start with ~50 emoji slots; boosted servers have more)
+        try {
+            const existing = await interaction.guild.emojis.fetch();
+            const approxLimit = 50; // conservative baseline
+            if (existing.size >= approxLimit) {
+                await interaction.reply({ content: 'Parece que o servidor atingiu o limite aproximado de emojis. Tente liberar espaço antes de adicionar.', ephemeral: true });
+                return;
+            }
+        } catch (err) {
+            console.warn('Não foi possível verificar emojis existentes:', err);
+            // proceed — creation will fail if over limit
+        }
+
+        // Ask the user to send the image
+        await interaction.reply({ content: 'Envie a imagem do emoji (png, jpg, jpeg, gif).', ephemeral: false });
+
+        const imageMsg = await collectResponse(interaction.channel, interaction.user.id, 30000);
+        if (!imageMsg) {
+            await interaction.followUp({ content: 'Tempo esgotado. Cancelando.', ephemeral: false });
+            return;
+        }
+
+        if (!imageMsg.attachments || imageMsg.attachments.size === 0) {
+            await interaction.followUp({ content: 'Nenhum arquivo detectado. Certifique-se de anexar uma imagem. Cancelando.', ephemeral: false });
+            return;
+        }
+
+        const attachment = imageMsg.attachments.first();
+        const url = attachment.url;
+        const nameLower = (attachment.name || url).toLowerCase();
+        const allowed = ['.png', '.jpg', '.jpeg', '.gif'];
+        if (!allowed.some(ext => nameLower.endsWith(ext))) {
+            await interaction.followUp({ content: 'Arquivo não suportado. Aceitamos: png, jpg, jpeg, gif.', ephemeral: false });
+            return;
+        }
+
+        // Try to create the emoji
+        try {
+            await interaction.guild.emojis.create(url, name);
+            await interaction.followUp({ content: 'Emoji adicionado com sucesso!', ephemeral: false });
+        } catch (err) {
+            console.error('Erro ao criar emoji:', err);
+            await interaction.followUp({ content: 'Erro ao adicionar emoji. Verifique permissões, limite do servidor e o formato do arquivo.', ephemeral: false });
         }
     }
 });
