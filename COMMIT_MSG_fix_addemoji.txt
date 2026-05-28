@@ -1,0 +1,1 @@
+Fix /addemoji: use attachment.url, validate attachment, detailed errors, logs

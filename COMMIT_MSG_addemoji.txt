@@ -1,0 +1,1 @@
+Improve /addemoji: detailed validation, specific error messages, and full logs

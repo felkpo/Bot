@@ -1,0 +1,1 @@
+Improve /addemoji: sanitize name, check guild emoji limit by tier, accept URL or attachment
