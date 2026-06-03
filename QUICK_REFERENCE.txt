@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+# 📚 QUICK REFERENCE - Royal Prussian Bot
+
+cat << "EOF"
+
+╔══════════════════════════════════════════════════════════════════╗
+║           👑 ROYAL PRUSSIAN - QUICK REFERENCE CARD              ║
+╚══════════════════════════════════════════════════════════════════╝
+
+╭─────────────────────────────────────────────────────────────────╮
+│ 🤖 ATIVAR A IA                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ 📌 MENÇÃO:                                                      │
+│   @Royal Prussian tudo bem?                                    │
+│   @Royal Prussian me ajuda com algo                            │
+│                                                                 │
+│ 🔤 PREFIXOS (8 variações):                                     │
+│   RP            → RP tudo bem?                                │
+│   rp            → rp me ajuda                                 │
+│   Rp            → Rp como funciona?                           │
+│   rP            → rP envie uma mensagem                       │
+│   Prussia       → Prussia qual o horário?                     │
+│   prussia       → prussia me explica                          │
+│   Royal Prussian → Royal Prussian tudo ok?                    │
+│   royal prussian → royal prussian como faço isso?             │
+│                                                                 │
+│ 💫 COM VÍRGULA (todos funcionam):                              │
+│   RP, tudo bem?                                               │
+│   prussia, me ajuda                                           │
+│   Royal Prussian, como funciona?                              │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ ⚡ SLASH COMMANDS                                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ /ping                                                          │
+│   → Teste de conexão + latência                              │
+│   Quem: Todos                                                │
+│                                                                 │
+│ /help                                                          │
+│   → Menu de comandos                                         │
+│   Quem: Todos                                                │
+│                                                                 │
+│ /say (ADMIN)                                                   │
+│   → Modo interativo para enviar mensagens                    │
+│   Quem: Administradores                                      │
+│   Processo: Escolhe canal → Escreve mensagem → Confirma     │
+│                                                                 │
+│ /sayrapido #canal mensagem (ADMIN)                             │
+│   → Envio rápido de mensagem                                 │
+│   Quem: Administradores                                      │
+│   Exemplo: /sayrapido #geral Olá pessoal!                   │
+│                                                                 │
+│ /addemoji nome (ADMIN)                                         │
+│   → Adiciona emoji ao servidor                              │
+│   Quem: Administradores                                      │
+│   Processo: Escreve comando → Envia imagem → Pronto!        │
+│   Formatos: PNG, JPG, JPEG, GIF                             │
+│   Limite: 256KB por arquivo                                 │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ ⚙️  INTENÇÕES ADMINISTRATIVAS (AUTOMÁTICA)                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ Admin: "Prussia, envie 'Boa noite!' no canal anúncios"        │
+│                                                                 │
+│ Bot: [Gera preview] [Pede confirmação SIM/NÃO]               │
+│                                                                 │
+│ Admin: SIM                                                     │
+│                                                                 │
+│ Bot: [Envia mensagem] ✅ Concluído                           │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ 📁 ESTRUTURA DE ARQUIVOS                                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ Prussia/                                                       │
+│ ├── src/                                                       │
+│ │   ├── commands/       (5 comandos)                          │
+│ │   ├── events/         (3 eventos)                           │
+│ │   ├── ai/             (IA Gemini + contexto)               │
+│ │   ├── utils/          (helpers, logs, regex)               │
+│ │   └── config/         (configuração)                       │
+│ ├── index.js            (entrada principal)                   │
+│ ├── package.json        (dependências)                        │
+│ ├── .env                (credenciais SECRETAS)               │
+│ └── README.md           (documentação)                        │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ 🔐 CONFIGURAÇÃO NECESSÁRIA                                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ No arquivo .env (SECRETO):                                    │
+│                                                                 │
+│ DISCORD_TOKEN=seu_token_discord_aqui                         │
+│   → Obtenha em: Discord Developer Portal                     │
+│   → Aba: Bot → Token                                         │
+│                                                                 │
+│ CLIENT_ID=seu_client_id_aqui                                 │
+│   → Obtenha em: Discord Developer Portal                     │
+│   → Aba: General Information → APPLICATION ID               │
+│                                                                 │
+│ GEMINI_API_KEY=sua_chave_api_gemini_aqui                     │
+│   → Obtenha em: https://makersuite.google.com/app/apikey    │
+│   → Crie uma nova chave de API                               │
+│                                                                 │
+│ LOG_LEVEL=info                                                │
+│   → Opções: error, warn, info, debug                        │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ 🚀 INICIALIZAÇÃO RÁPIDA                                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ 1. npm install                                                 │
+│    → Instala dependências                                     │
+│                                                                 │
+│ 2. cp .env.example .env                                       │
+│    → Cria arquivo de configuração                            │
+│                                                                 │
+│ 3. [Edite o .env com suas credenciais]                        │
+│                                                                 │
+│ 4. npm start                                                   │
+│    → Inicia o bot                                            │
+│                                                                 │
+│ Linux/Mac:                                                     │
+│    chmod +x start.sh && ./start.sh                           │
+│                                                                 │
+│ Windows:                                                       │
+│    start.bat                                                  │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ 📊 CARACTERÍSTICAS DA IA                                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ ✅ Mantém histórico de conversa                               │
+│ ✅ Responde em português                                       │
+│ ✅ Usa emojis apropriados                                      │
+│ ✅ Inteligência natural (Gemini)                              │
+│ ✅ Cooldown de 2 segundos entre mensagens                    │
+│ ✅ Máximo 10 mensagens no histórico                          │
+│ ✅ Contexto por usuário                                       │
+│ ✅ Contexto por servidor                                      │
+│ ✅ Reconhece intenções administrativas                        │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ 🛡️  PROTEÇÕES ATIVADAS                                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ 🤖 Ignora mensagens de outros bots                            │
+│ ⏱️  Cooldown por usuário (2 segundos)                          │
+│ 📊 Limite de histórico (10 mensagens)                         │
+│ 🔄 Limpa cooldowns periodicamente                             │
+│ ✅ Valida permissões antes de agir                            │
+│ 🔍 Verifica erros da API                                      │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ 📖 DOCUMENTAÇÃO                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ README.md             → Documentação completa                 │
+│ DEVELOPMENT.md        → Como estender/desenvolver            │
+│ EXAMPLES.md           → Exemplos de uso                      │
+│ TROUBLESHOOTING.md    → FAQ e problemas comuns              │
+│ CHANGELOG.md          → Histórico de versões                │
+│ INSTALLATION_SUMMARY  → Sumário da implementação            │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────────────────╮
+│ ❓ DÚVIDAS RÁPIDAS                                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ P: Como testar a IA?                                          │
+│ R: Escreva: "RP tudo bem?" em qualquer canal                │
+│                                                                 │
+│ P: Como adicionar novo comando?                              │
+│ R: Crie src/commands/nome.js (será auto-carregado)          │
+│                                                                 │
+│ P: Como mudar o prompt da IA?                                │
+│ R: Edite src/ai/gemini.js → getSystemPrompt()              │
+│                                                                 │
+│ P: Como adicionar prefixos?                                  │
+│ R: Edite src/config/config.js → AI.prefixes                │
+│                                                                 │
+│ P: Como verificar logs?                                      │
+│ R: Execute com LOG_LEVEL=debug no .env                     │
+│                                                                 │
+│ P: Bot não responde?                                         │
+│ R: Verifique TROUBLESHOOTING.md                             │
+│                                                                 │
+╰─────────────────────────────────────────────────────────────────╯
+
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║            👑 Royal Prussian está pronta para servir! 🚀        ║
+║                                                                  ║
+║  Para mais informações, consulte a documentação em README.md   ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+EOF
