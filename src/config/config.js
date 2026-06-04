@@ -5,9 +5,9 @@ module.exports = {
   DISCORD_TOKEN: process.env.DISCORD_TOKEN,
   CLIENT_ID: process.env.CLIENT_ID,
   
-  // Ollama
-  OLLAMA_URL: process.env.OLLAMA_URL,
-  OLLAMA_MODEL: process.env.OLLAMA_MODEL || 'qwen3:8b',
+  // Ollama (localhost by default)
+  OLLAMA_URL: process.env.OLLAMA_URL || 'http://localhost:11434',
+  OLLAMA_MODEL: process.env.OLLAMA_MODEL || 'qwen3.6:latest',
   
   // AI Settings
   AI: {

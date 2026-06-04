@@ -4,25 +4,31 @@ const config = require('../config/config');
 
 class OllamaClient {
   constructor() {
-    this.url = process.env.OLLAMA_URL || config.OLLAMA_URL || null;
-    this.modelName = process.env.OLLAMA_MODEL || config.OLLAMA_MODEL || 'qwen3:8b';
+    this.url = (process.env.OLLAMA_URL || config.OLLAMA_URL || 'http://localhost:11434').replace(/\/$/, '');
+    this.modelName = process.env.OLLAMA_MODEL || config.OLLAMA_MODEL || 'qwen3.6:latest';
     this.initialized = this.initialize();
+    this.isOnline = false;
   }
 
   async initialize() {
-    if (!this.url) {
-      logger.warn('⚠️ OLLAMA_URL não configurada. Ollama desativado.');
-      return;
-    }
-
     try {
-      logger.info('[Ollama] Conectando ao Ollama...', { url: this.url });
+      logger.info('[Ollama] Conectando ao Ollama...', { url: this.url, model: this.modelName });
+      
+      // Check if model exists
+      const modelExists = await this.verifyModel();
+      if (!modelExists) {
+        logger.warn('⚠️ Modelo não encontrado', { model: this.modelName });
+        return;
+      }
+
+      // Health check
       const ok = await this.healthCheck();
       if (ok) {
-        logger.info('[Ollama] Ollama online', { url: this.url, model: this.modelName });
+        this.isOnline = true;
+        logger.info('✅ Ollama online', { url: this.url, model: this.modelName });
       }
     } catch (error) {
-      logger.error('[Ollama] Falha ao inicializar Ollama', { error: error.message });
+      logger.error('[Ollama] Falha ao inicializar', { error: error.message });
     }
   }
 
@@ -30,27 +36,54 @@ class OllamaClient {
     return this.initialized;
   }
 
-  async healthCheck(timeoutMs = 8000) {
+  async verifyModel(timeoutMs = 5000) {
     if (!this.url) return false;
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`${this.url.replace(/\/$/, '')}/api/generate`, {
+      const res = await fetch(`${this.url}/api/tags`, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      clearTimeout(id);
+      if (!res.ok) return false;
+      
+      const data = await res.json();
+      const models = data.models || [];
+      const found = models.some(m => m.name === this.modelName || m.name.startsWith(this.modelName.split(':')[0]));
+      
+      if (!found) {
+        logger.warn('⚠️ Modelo não encontrado. Modelos disponíveis:', { models: models.map(m => m.name), expected: this.modelName });
+      }
+      return found;
+    } catch (error) {
+      clearTimeout(id);
+      logger.warn('[Ollama] Falha ao verificar modelo', { error: error.message });
+      return false;
+    }
+  }
+
+  async healthCheck(timeoutMs = 5000) {
+    if (!this.url) return false;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.url}/api/generate`, {
         method: 'POST',
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: this.modelName, prompt: 'Olá', max_tokens: 16 })
+        body: JSON.stringify({ model: this.modelName, prompt: 'ok', stream: false })
       });
       clearTimeout(id);
       if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        logger.warn('[Ollama] Health check retornou não ok', { status: res.status, body });
+        logger.warn('[Ollama] Health check retornou não ok', { status: res.status });
         return false;
       }
       return true;
     } catch (error) {
       clearTimeout(id);
-      logger.error('[Ollama] Health check falhou', { error: error.message });
+      logger.debug('[Ollama] Health check falhou', { error: error.message });
       return false;
     }
   }
@@ -63,8 +96,8 @@ Características:\n- Nome: ${config.BOT_NAME}\n- Você é amigável, educada, in
   async generateResponse(message, promptContext = {}, timeoutMs = 30000) {
     await this.ensureInitialized();
 
-    if (!this.url) {
-      throw new Error('Ollama não configurado (OLLAMA_URL ausente)');
+    if (!this.isOnline) {
+      throw new Error('Ollama está offline. Verifique: http://localhost:11434');
     }
 
     // Build prompt combining system, memories and conversation
@@ -87,13 +120,12 @@ Características:\n- Nome: ${config.BOT_NAME}\n- Você é amigável, educada, in
     const payload = {
       model: this.modelName,
       prompt: promptText,
-      max_tokens: 1024,
-      temperature: 0.2
+      stream: false
     };
 
     const start = Date.now();
     try {
-      const res = await fetch(`${this.url.replace(/\/$/, '')}/api/generate`, {
+      const res = await fetch(`${this.url}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -103,23 +135,23 @@ Características:\n- Nome: ${config.BOT_NAME}\n- Você é amigável, educada, in
       const ms = Date.now() - start;
       if (!res.ok) {
         const body = await res.text().catch(() => '');
-        logger.error('[Ollama] Erro de geração', { status: res.status, body });
-        throw new Error(`Falha ao gerar resposta (status ${res.status})`);
+        logger.error('[Ollama] Erro ao gerar', { status: res.status, body });
+        throw new Error(`Ollama retornou status ${res.status}`);
       }
 
       const data = await res.json();
-      // Ollama responses may differ; try to extract text
-      let text = '';
-      if (typeof data === 'string') text = data;
-      else if (data?.output) text = Array.isArray(data.output) ? data.output.map(o => o.content || o.text || '').join('\n') : (data.output?.content || data.output?.text || '');
-      else if (data?.results) text = data.results.map(r => r.output?.text || r.output?.content || '').join('\n');
-      else text = JSON.stringify(data);
+      let text = data.response || '';
 
-      logger.info('[Ollama] Resposta gerada', { model: this.modelName, responseTimeMs: ms, responseLength: text.length, url: this.url });
+      logger.info('[Ollama] Resposta gerada', { 
+        model: this.modelName, 
+        responseTimeMs: ms, 
+        responseLength: text.length,
+        contextLength: promptText.length
+      });
       return text;
     } catch (error) {
       clearTimeout(id);
-      logger.error('[Ollama] Falha ao gerar resposta', { error: error.message });
+      logger.error('[Ollama] Falha ao gerar resposta', { error: error.message, url: this.url });
       throw error;
     }
   }
