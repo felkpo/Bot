@@ -5,9 +5,9 @@ module.exports = {
   DISCORD_TOKEN: process.env.DISCORD_TOKEN,
   CLIENT_ID: process.env.CLIENT_ID,
   
-  // Gemini
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-  GEMINI_MODEL: 'gemini-1.5-flash',
+  // Ollama
+  OLLAMA_URL: process.env.OLLAMA_URL,
+  OLLAMA_MODEL: process.env.OLLAMA_MODEL || 'qwen3:8b',
   
   // AI Settings
   AI: {

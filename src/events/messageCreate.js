@@ -1,9 +1,9 @@
 const { Events, ChannelType } = require('discord.js');
 const logger = require('../utils/logger');
-const gemini = require('../ai/gemini');
+const gemini = require('../ai/ollama');
 const contextManager = require('../ai/contextManager');
-const AdminIntentions = require('../ai/adminIntentions');
 const { shouldActivateAI, stripPrefix } = require('../utils/regex');
+const { tryParseStructuredResponse, executeToolAction } = require('../ai/toolManager');
 const config = require('../config/config');
 
 module.exports = {
@@ -57,133 +57,19 @@ module.exports = {
         mentioned: isMentioned
       });
 
-      // Verifica intenções administrativas
-      if (config.FEATURES.ADMIN_COMMANDS_ENABLED) {
-        const intent = AdminIntentions.analyzeIntent(userMessage, message.member);
-        
-        if (intent && intent.type === 'send_message') {
-          logger.info('⚙️ Intenção administrativa detectada', {
-            type: intent.type,
-            user: message.author.tag
-          });
-
-          const result = await AdminIntentions.processSendMessageIntent(
-            intent,
-            message.guild,
-            message.member,
-            message
-          );
-
-          if (!result.success) {
-            await message.reply({
-              content: `❌ ${result.error}`,
-              allowedMentions: { repliedUser: false }
-            });
-            return;
-          }
-
-          // Gera preview
-          const preview = AdminIntentions.generatePreview(
-            result.message,
-            result.channel.toString()
-          );
-
-          const confirmMsg = await message.reply({
-            content: preview,
-            allowedMentions: { repliedUser: false }
-          });
-
-          // Aguarda confirmação
-          const confirmResponse = await new Promise(resolve => {
-            const filter = m => m.author.id === message.author.id;
-            let resolved = false;
-            const collector = message.channel.createMessageCollector({
-              filter,
-              time: 30000,
-              max: 1
-            });
-
-            collector.on('collect', m => {
-              if (!resolved) {
-                resolved = true;
-                resolve(m);
-              }
-            });
-
-            collector.on('end', () => {
-              if (!resolved) {
-                resolved = true;
-                resolve(null);
-              }
-            });
-          });
-
-          if (!confirmResponse) {
-            await message.followUp({
-              content: '⏱️ Confirmação expirada. Cancelando.',
-              allowedMentions: { repliedUser: false }
-            });
-            return;
-          }
-
-          if (!AdminIntentions.validateConfirmation(confirmResponse.content)) {
-            await message.followUp({
-              content: '❌ Confirmação negada. Cancelando.',
-              allowedMentions: { repliedUser: false }
-            });
-            return;
-          }
-
-          // Envia a mensagem
-          try {
-            await result.channel.send({ content: result.message });
-            await message.followUp({
-              content: `✅ Mensagem enviada com sucesso em ${result.channel}!`,
-              allowedMentions: { repliedUser: false }
-            });
-
-            logger.info('✉️ Mensagem administrativa enviada', {
-              channel: result.channel.name,
-              by: message.author.tag,
-              messageLength: result.message.length
-            });
-
-            // Adiciona contexto da conversa
-            contextManager.addMessage(
-              message.author.id,
-              message.guildId,
-              'user',
-              userMessage
-            );
-            contextManager.addMessage(
-              message.author.id,
-              message.guildId,
-              'assistant',
-              `Mensagem enviada com sucesso em ${result.channel}!`
-            );
-          } catch (error) {
-            logger.error('❌ Erro ao enviar mensagem administrativa', {
-              error: error.message
-            });
-            await message.followUp({
-              content: '❌ Erro ao enviar mensagem. Verifique permissões.',
-              allowedMentions: { repliedUser: false }
-            });
-          }
-          return;
-        }
-      }
-
       // IA normal
       if (!config.FEATURES.AI_ENABLED) {
         return;
       }
 
       try {
-        // Obtém contexto do usuário
-        const context = contextManager.getContext(message.author.id, message.guildId);
+        // Obtém contexto do usuário e memórias relevantes
+        const context = await contextManager.getPromptContext(
+          message.author.id,
+          message.guildId,
+          message.channelId
+        );
 
-        // Gera resposta
         const startTime = Date.now();
         const response = await gemini.generateResponse(userMessage, context);
         const responseTime = Date.now() - startTime;
@@ -194,18 +80,72 @@ module.exports = {
           responseLength: response.length
         });
 
+        const parsedAction = tryParseStructuredResponse(response);
+        if (parsedAction && parsedAction.action) {
+          const actionResult = await executeToolAction(parsedAction, message);
+          if (actionResult.success) {
+            await contextManager.addMessage(
+              message.author.id,
+              message.guildId,
+              'user',
+              userMessage,
+              message.channelId,
+              message.channel.name,
+              message.author.tag
+            );
+            await contextManager.addMessage(
+              message.author.id,
+              message.guildId,
+              'assistant',
+              actionResult.contextMessage || `Ação ${parsedAction.action} executada com sucesso.`,
+              message.channelId,
+              message.channel.name,
+              config.BOT_NAME
+            );
+
+            await message.reply({
+              content: actionResult.summary,
+              allowedMentions: { repliedUser: false }
+            });
+            return;
+          }
+
+          await contextManager.addMessage(
+            message.author.id,
+            message.guildId,
+            'user',
+            userMessage,
+            message.channelId,
+            message.channel.name,
+            message.author.tag
+          );
+          await message.reply({
+            content: actionResult.error
+              ? `❌ ${actionResult.error}`
+              : actionResult.summary || '❌ Ação não executada.',
+            allowedMentions: { repliedUser: false }
+          });
+          return;
+        }
+
         // Adiciona ao contexto
-        contextManager.addMessage(
+        await contextManager.addMessage(
           message.author.id,
           message.guildId,
           'user',
-          userMessage
+          userMessage,
+          message.channelId,
+          message.channel.name,
+          message.author.tag
         );
-        contextManager.addMessage(
+        await contextManager.addMessage(
           message.author.id,
           message.guildId,
           'assistant',
-          response
+          response,
+          message.channelId,
+          message.channel.name,
+          config.BOT_NAME
         );
 
         // Envia resposta em chunks se muito longa
@@ -228,11 +168,11 @@ module.exports = {
 
         let errorMsg = '❌ Desculpe, tive um problema ao processar sua mensagem.';
 
-        if (error.message.includes('Chave de API')) {
-          errorMsg = '❌ Erro de configuração: chave de API Gemini inválida.';
+        if (error.message.includes('OLLAMA_URL') || error.message.toLowerCase().includes('ollama')) {
+          errorMsg = '❌ Erro de configuração: OLLAMA_URL inválida ou Ollama indisponível.';
         } else if (error.message.includes('limite')) {
           errorMsg = '❌ Limite de requisições excedido. Tente novamente em alguns momentos.';
-        } else if (error.message.includes('timeout')) {
+        } else if (error.message.includes('timeout') || error.code === 'ETIMEDOUT') {
           errorMsg = '❌ Conexão com IA expirou. Tente novamente.';
         }
 

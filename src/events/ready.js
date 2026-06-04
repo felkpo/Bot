@@ -2,7 +2,7 @@ const { Events, REST, Routes } = require('discord.js');
 const { readdirSync } = require('fs');
 const { join } = require('path');
 const logger = require('../utils/logger');
-const gemini = require('../ai/gemini');
+const ollama = require('../ai/ollama');
 const config = require('../config/config');
 
 module.exports = {
@@ -38,17 +38,17 @@ module.exports = {
       logger.warn('⚠️ CLIENT_ID não configurada - comandos não foram registrados');
     }
 
-    // Testa conexão com Gemini
+    // Testa conexão com Ollama
     if (config.FEATURES.AI_ENABLED) {
       try {
-        const isHealthy = await gemini.healthCheck();
+        const isHealthy = await ollama.healthCheck();
         if (isHealthy) {
-          logger.info('✅ IA Gemini conectada e funcionando');
+          logger.info('✅ Ollama conectada e funcionando', { url: config.OLLAMA_URL, model: config.OLLAMA_MODEL });
         } else {
-          logger.warn('⚠️ IA Gemini conectada mas com problemas');
+          logger.warn('⚠️ Ollama conectada mas com problemas');
         }
       } catch (error) {
-        logger.error('❌ Erro ao conectar com IA Gemini', { error: error.message });
+        logger.error('❌ Erro ao conectar com Ollama', { error: error.message });
       }
     }
 
