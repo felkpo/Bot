@@ -1,0 +1,193 @@
+{
+  "1463734930394579007": {
+    "events": [
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507893811140100156",
+        "timestamp": "2026-06-14T02:01:45.493Z",
+        "channelId": "1507893811140100156"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1508907253883736164",
+        "timestamp": "2026-06-14T02:01:44.804Z",
+        "channelId": "1508907253883736164"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507893811140100156",
+        "timestamp": "2026-06-12T16:52:30.606Z",
+        "channelId": "1507893811140100156"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1508907253883736164",
+        "timestamp": "2026-06-12T16:52:29.974Z",
+        "channelId": "1508907253883736164"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507893811140100156",
+        "timestamp": "2026-06-12T15:24:48.998Z",
+        "channelId": "1507893811140100156"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1508907253883736164",
+        "timestamp": "2026-06-12T15:24:48.342Z",
+        "channelId": "1508907253883736164"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "1513967641889341671",
+        "targetId": "1498685825934819548",
+        "timestamp": "2026-06-12T14:55:01.188Z",
+        "channelId": "1498685825934819548"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "1513967641889341671",
+        "targetId": "1498685825934819548",
+        "timestamp": "2026-06-12T14:55:00.583Z",
+        "channelId": "1498685825934819548"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "1513967641889341671",
+        "targetId": "1498685825934819548",
+        "timestamp": "2026-06-12T14:54:40.862Z",
+        "channelId": "1498685825934819548"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507893811140100156",
+        "timestamp": "2026-06-12T09:44:39.871Z",
+        "channelId": "1507893811140100156"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1508907253883736164",
+        "timestamp": "2026-06-12T09:44:39.098Z",
+        "channelId": "1508907253883736164"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507894913990393967",
+        "timestamp": "2026-06-12T01:14:13.257Z",
+        "channelId": "1507894913990393967"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1508907253883736164",
+        "timestamp": "2026-06-12T01:14:12.627Z",
+        "channelId": "1508907253883736164"
+      },
+      {
+        "action": "ROLE_DELETE",
+        "executorId": "Desconhecido",
+        "targetId": "1514727714089603292",
+        "timestamp": "2026-06-12T00:49:51.642Z",
+        "roleId": "1514727714089603292"
+      },
+      {
+        "source": "bot_action",
+        "requestedBy": "860580287661342770",
+        "action": "kick_user",
+        "targetId": "1476697582280380489",
+        "targetTag": "Killua#0597",
+        "channelId": "1470820667334201516",
+        "timestamp": "2026-06-12T00:49:49.776Z"
+      },
+      {
+        "action": "ROLE_DELETE",
+        "executorId": "Desconhecido",
+        "targetId": "1513614042152042609",
+        "timestamp": "2026-06-10T21:29:20.547Z",
+        "roleId": "1513614042152042609"
+      },
+      {
+        "source": "bot_action",
+        "requestedBy": "860580287661342770",
+        "action": "ban_user",
+        "targetId": "1512580502547333261",
+        "targetTag": "Zul#0833",
+        "channelId": "1470820667334201516",
+        "timestamp": "2026-06-10T21:29:18.841Z"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507893811140100156",
+        "timestamp": "2026-06-10T21:26:41.197Z",
+        "channelId": "1507893811140100156"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1508907253883736164",
+        "timestamp": "2026-06-10T21:26:40.738Z",
+        "channelId": "1508907253883736164"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507894913990393967",
+        "timestamp": "2026-06-10T21:03:52.467Z",
+        "channelId": "1507894913990393967"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1507893811140100156",
+        "timestamp": "2026-06-10T21:03:51.687Z",
+        "channelId": "1507893811140100156"
+      },
+      {
+        "action": "CHANNEL_UPDATE",
+        "executorId": "458276816071950337",
+        "targetId": "1508907253883736164",
+        "timestamp": "2026-06-10T21:03:50.986Z",
+        "channelId": "1508907253883736164"
+      },
+      {
+        "action": "ROLE_DELETE",
+        "executorId": "Desconhecido",
+        "targetId": "1514049513806102591",
+        "timestamp": "2026-06-10T20:52:21.538Z",
+        "roleId": "1514049513806102591"
+      }
+    ]
+  },
+  "1470755970438270997": {
+    "events": [
+      {
+        "action": "MEMBER_UPDATE",
+        "executorId": "860580287661342770",
+        "targetId": "1518629169624252566",
+        "timestamp": "2026-06-22T16:29:49.980Z"
+      },
+      {
+        "action": "MEMBER_UPDATE",
+        "executorId": "860580287661342770",
+        "targetId": "1518629169624252566",
+        "timestamp": "2026-06-22T16:29:26.653Z"
+      },
+      {
+        "action": "MEMBER_UPDATE",
+        "executorId": "297153970613387264",
+        "targetId": "1518629169624252566",
+        "timestamp": "2026-06-22T16:29:07.735Z"
+      }
+    ]
+  }
+}

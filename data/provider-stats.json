@@ -1,0 +1,9 @@
+{
+  "Gemini": {
+    "success": 134,
+    "failed": 3,
+    "cooldowns": 3,
+    "totalResponseTime": 502690,
+    "calls": 137
+  }
+}

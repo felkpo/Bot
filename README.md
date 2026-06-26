@@ -24,7 +24,7 @@ Bot Discord com inteligência artificial usando Discord.js v14 e Google Gemini A
 
 1. **Clone ou copie o repositório**
    ```bash
-   cd Prussia
+   cd Royal Prussian
    ```
 
 2. **Instale as dependências**
@@ -84,16 +84,12 @@ A IA responde quando:
 - `@Royal Prussian me ajuda`
 
 ### Prefixos (case-insensitive)
-- `RP tudo bem?`
-- `rp me ajuda`
-- `Prussia qual o horário?`
-- `Royal Prussian envie uma mensagem`
-- `Rp como faço um ticket?`
+- `rp tudo bem?`
+- `prussia qual o horário?`
 
 ### Com Vírgula
-- `RP, tudo bem?`
-- `prussia, me ajuda`
-- `Royal Prussian, como funciona?`
+- `rp, tudo bem?`
+- `prussia, como funciona?`
 
 ## 🎮 Comandos
 
@@ -111,7 +107,7 @@ A IA responde quando:
 Quando um administrador escreve:
 
 ```
-Prussia, envie boa noite no canal anúncios
+prussia, envie boa noite no canal anúncios
 ```
 
 O bot:
@@ -124,7 +120,7 @@ O bot:
 ## 📁 Estrutura de Pastas
 
 ```
-Prussia/
+Royal Prussian/
 ├── src/
 │   ├── commands/         # Comandos slash
 │   │   ├── ping.js
@@ -217,7 +213,7 @@ A IA foi configurada para ser:
 
 ## 📄 Licença
 
-Desenvolvido para Eclipse Labs - Royal Prussian Server
+Desenvolvido para Eclipse Labs
 
 ## 🤝 Suporte
 

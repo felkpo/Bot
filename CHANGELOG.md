@@ -14,7 +14,7 @@ Transformação de um bot Discord básico para uma assistente virtual inteligent
 - [NEW] Tratamento robusto de erros da API
 
 #### 💬 Ativação da IA
-- [NEW] 8 variações de prefixo (RP, Prussia, Royal Prussian, etc.)
+- [NEW] 8 variações de prefixo (rp, prussia, etc.)
 - [NEW] Detecção case-insensitive
 - [NEW] Suporte a vírgulas após prefixo
 - [NEW] Menção do bot como ativador

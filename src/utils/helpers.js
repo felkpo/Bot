@@ -121,6 +121,79 @@ function formatTime(ms) {
   return `${seconds}s`;
 }
 
+/**
+ * Universal target resolver
+ * @param {Guild} guild - The Discord guild
+ * @param {string} input - The input string (ID, mention, or name)
+ * @param {string} type - 'user', 'role', 'channel', or 'bot'
+ * @returns {Object|null} - Resolved object with id and name, or null
+ */
+async function resolveTarget(guild, input, type) {
+  if (!guild || !input) return null;
+  const strInput = String(input).trim();
+  
+  // Extract ID if mention
+  let id = strInput.replace(/<@!?&?#?(\d+)>/, '$1');
+  let isId = /^\d{17,20}$/.test(id);
+
+  if (type === 'user' || type === 'bot') {
+    if (isId) {
+      try {
+        const user = await guild.client.users.fetch(id);
+        if (user && type === 'bot' && !user.bot) return null;
+        if (user) return { id: user.id, name: user.username, isBot: user.bot };
+      } catch (e) {
+        const logger = require('./logger');
+        logger.error('[AUDIT BOT LOOKUP ERROR]', { error: e.message, target: id });
+      }
+    }
+    
+    // Search by name ONLY in cache (NEVER global fetch)
+    const lowerInput = strInput.toLowerCase();
+    let found;
+    if (type === 'bot') {
+      found = guild.members.cache.find(m => m.user.bot && (m.user.username.toLowerCase() === lowerInput || m.user.globalName?.toLowerCase() === lowerInput));
+      if (!found) {
+        found = guild.members.cache.find(m => m.user.bot && (m.user.username.toLowerCase().includes(lowerInput) || m.user.globalName?.toLowerCase().includes(lowerInput)));
+      }
+    } else {
+      found = guild.members.cache.find(m => m.user.username.toLowerCase() === lowerInput || m.user.globalName?.toLowerCase() === lowerInput);
+      if (!found) {
+        found = guild.members.cache.find(m => m.user.username.toLowerCase().includes(lowerInput) || m.user.globalName?.toLowerCase().includes(lowerInput));
+      }
+    }
+    if (found) return { id: found.id, name: found.user.username, isBot: found.user.bot };
+  } 
+  else if (type === 'role') {
+    if (isId) {
+      const role = guild.roles.cache.get(id);
+      if (role) return { id: role.id, name: role.name };
+    }
+    
+    const lowerInput = strInput.toLowerCase();
+    let found = guild.roles.cache.find(r => r.name.toLowerCase() === lowerInput);
+    if (!found) {
+      found = guild.roles.cache.find(r => r.name.toLowerCase().includes(lowerInput));
+    }
+    if (found) return { id: found.id, name: found.name };
+  }
+  else if (type === 'channel') {
+    if (isId) {
+      const channel = guild.channels.cache.get(id);
+      if (channel) return { id: channel.id, name: channel.name };
+    }
+    
+    const lowerInput = strInput.toLowerCase().replace(/^#/, '');
+    let found = guild.channels.cache.find(c => c.name.toLowerCase() === lowerInput);
+    if (!found) {
+      found = guild.channels.cache.find(c => c.name.toLowerCase().includes(lowerInput));
+    }
+    if (found) return { id: found.id, name: found.name };
+  }
+
+  return null;
+}
+
 module.exports = {
   collectResponse,
   isAdmin,
@@ -128,5 +201,6 @@ module.exports = {
   findChannel,
   sanitizeEmojiName,
   getEmojiLimit,
-  formatTime
+  formatTime,
+  resolveTarget
 };

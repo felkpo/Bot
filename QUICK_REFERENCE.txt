@@ -1,34 +1,29 @@
 #!/usr/bin/env bash
-# 📚 QUICK REFERENCE - Royal Prussian Bot
+# 📚 QUICK REFERENCE - Royal Prussian
 
 cat << "EOF"
 
 ╔══════════════════════════════════════════════════════════════════╗
-║           👑 ROYAL PRUSSIAN - QUICK REFERENCE CARD              ║
+║        👑 ROYAL PRUSSIAN - QUICK REFERENCE CARD         ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 ╭─────────────────────────────────────────────────────────────────╮
 │ 🤖 ATIVAR A IA                                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ 📌 MENÇÃO:                                                      │
-│   @Royal Prussian tudo bem?                                    │
-│   @Royal Prussian me ajuda com algo                            │
+│ 📌 MENÇÃO:                                                     │
+│   @Royal Prussian tudo bem?                                   │
+│   @Royal Prussian me ajuda com algo                           │
 │                                                                 │
-│ 🔤 PREFIXOS (8 variações):                                     │
-│   RP            → RP tudo bem?                                │
-│   rp            → rp me ajuda                                 │
-│   Rp            → Rp como funciona?                           │
-│   rP            → rP envie uma mensagem                       │
-│   Prussia       → Prussia qual o horário?                     │
-│   prussia       → prussia me explica                          │
-│   Royal Prussian → Royal Prussian tudo ok?                    │
-│   royal prussian → royal prussian como faço isso?             │
+│ 🔤 PREFIXOS (Case-Insensitive):                                 │
+│   rp            → rp tudo bem?                                │
+│   prussia       → prussia qual o horário?                     │
+│   mprussia      → mprussia me fale sobre os korps             │
+│   mp            → mp qual a lore?                             │
 │                                                                 │
 │ 💫 COM VÍRGULA (todos funcionam):                              │
-│   RP, tudo bem?                                               │
+│   rp, tudo bem?                                               │
 │   prussia, me ajuda                                           │
-│   Royal Prussian, como funciona?                              │
 │                                                                 │
 ╰─────────────────────────────────────────────────────────────────╯
 
@@ -67,13 +62,13 @@ cat << "EOF"
 │ ⚙️  INTENÇÕES ADMINISTRATIVAS (AUTOMÁTICA)                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ Admin: "Prussia, envie 'Boa noite!' no canal anúncios"        │
+│ Admin: "rp, envie 'Boa noite!' no canal anúncios"             │
 │                                                                 │
 │ Bot: [Gera preview] [Pede confirmação SIM/NÃO]               │
 │                                                                 │
 │ Admin: SIM                                                     │
 │                                                                 │
-│ Bot: [Envia mensagem] ✅ Concluído                           │
+│ Bot: [Envia mensagem] ✅ Concluído                            │
 │                                                                 │
 ╰─────────────────────────────────────────────────────────────────╯
 
@@ -81,11 +76,12 @@ cat << "EOF"
 │ 📁 ESTRUTURA DE ARQUIVOS                                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ Prussia/                                                       │
+│ Prussia/                                                      │
 │ ├── src/                                                       │
-│ │   ├── commands/       (5 comandos)                          │
-│ │   ├── events/         (3 eventos)                           │
-│ │   ├── ai/             (IA Gemini + contexto)               │
+│ │   ├── commands/       (comandos slash)                      │
+│ │   ├── events/         (eventos discord)                     │
+│ │   ├── ai/             (IA multi-provedor)                   │
+│ │   ├── managers/       (gerenciadores)                       │
 │ │   ├── utils/          (helpers, logs, regex)               │
 │ │   └── config/         (configuração)                       │
 │ ├── index.js            (entrada principal)                   │
@@ -109,9 +105,11 @@ cat << "EOF"
 │   → Obtenha em: Discord Developer Portal                     │
 │   → Aba: General Information → APPLICATION ID               │
 │                                                                 │
-│ GEMINI_API_KEY=sua_chave_api_gemini_aqui                     │
-│   → Obtenha em: https://makersuite.google.com/app/apikey    │
-│   → Crie uma nova chave de API                               │
+│ # Chaves de API (pelo menos uma é recomendada)                  │
+│ OPENROUTER_API_KEY=...                                        │
+│ GEMINI_API_KEY=...                                            │
+│ GROQ_API_KEY=...                                              │
+│ WORKERS_API_KEY=...                                           │
 │                                                                 │
 │ LOG_LEVEL=info                                                │
 │   → Opções: error, warn, info, debug                        │
@@ -145,14 +143,14 @@ cat << "EOF"
 │ 📊 CARACTERÍSTICAS DA IA                                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
+│ ✅ Sistema Multi-Provedor com fallback                        │
+│ ✅ Múltiplas personalidades (Akira, Servant, etc)             │
 │ ✅ Mantém histórico de conversa                               │
 │ ✅ Responde em português                                       │
 │ ✅ Usa emojis apropriados                                      │
-│ ✅ Inteligência natural (Gemini)                              │
-│ ✅ Cooldown de 2 segundos entre mensagens                    │
+│ ✅ Cooldown por usuário                                        │
 │ ✅ Máximo 10 mensagens no histórico                          │
 │ ✅ Contexto por usuário                                       │
-│ ✅ Contexto por servidor                                      │
 │ ✅ Reconhece intenções administrativas                        │
 │                                                                 │
 ╰─────────────────────────────────────────────────────────────────╯
@@ -162,7 +160,7 @@ cat << "EOF"
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │ 🤖 Ignora mensagens de outros bots                            │
-│ ⏱️  Cooldown por usuário (2 segundos)                          │
+│ ⏱️  Cooldown por usuário                                       │
 │ 📊 Limite de histórico (10 mensagens)                         │
 │ 🔄 Limpa cooldowns periodicamente                             │
 │ ✅ Valida permissões antes de agir                            │
@@ -174,12 +172,9 @@ cat << "EOF"
 │ 📖 DOCUMENTAÇÃO                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ README.md             → Documentação completa                 │
-│ DEVELOPMENT.md        → Como estender/desenvolver            │
-│ EXAMPLES.md           → Exemplos de uso                      │
-│ TROUBLESHOOTING.md    → FAQ e problemas comuns              │
-│ CHANGELOG.md          → Histórico de versões                │
-│ INSTALLATION_SUMMARY  → Sumário da implementação            │
+│ README.md             → Documentação principal                │
+│ TROUBLESHOOTING.md    → FAQ e problemas comuns                │
+│ TENKAI_MIGRATION_LEGACY_AUDIT.txt -> Conteúdo legado          │
 │                                                                 │
 ╰─────────────────────────────────────────────────────────────────╯
 
@@ -187,17 +182,17 @@ cat << "EOF"
 │ ❓ DÚVIDAS RÁPIDAS                                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ P: Como testar a IA?                                          │
-│ R: Escreva: "RP tudo bem?" em qualquer canal                │
+│ P: Como testar a IA?                                           │
+│ R: Escreva: "rp tudo bem?" em qualquer canal                 │
 │                                                                 │
 │ P: Como adicionar novo comando?                              │
-│ R: Crie src/commands/nome.js (será auto-carregado)          │
+│ R: Edite `src/config/commandCatalog.js`                      │
 │                                                                 │
 │ P: Como mudar o prompt da IA?                                │
-│ R: Edite src/ai/gemini.js → getSystemPrompt()              │
+│ R: Edite `src/ai/openrouter.js` (métodos _build...Personality) │
 │                                                                 │
 │ P: Como adicionar prefixos?                                  │
-│ R: Edite src/config/config.js → AI.prefixes                │
+│ R: Edite `src/config/config.js` → `AI.prefixes`              │
 │                                                                 │
 │ P: Como verificar logs?                                      │
 │ R: Execute com LOG_LEVEL=debug no .env                     │
@@ -209,7 +204,7 @@ cat << "EOF"
 
 ╔══════════════════════════════════════════════════════════════════╗
 ║                                                                  ║
-║            👑 Royal Prussian está pronta para servir! 🚀        ║
+║         👑 Royal Prussian está pronta para servir! 🚀     ║
 ║                                                                  ║
 ║  Para mais informações, consulte a documentação em README.md   ║
 ║                                                                  ║

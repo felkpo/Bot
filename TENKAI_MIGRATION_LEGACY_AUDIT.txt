@@ -1,0 +1,253 @@
+[LEGACY CONTENT FOUND]
+File: README_DEPLOY.md
+L3: This document explains how to run Ollama locally, expose it via a public HTTPS URL (ngrok / cloudflared), set environment variables for Railway, and deploy the `royal-prussian-bot` that now uses Ollama as the LLM backend.
+
+[LEGACY CONTENT FOUND]
+File: README_LOCAL.md
+L1: # Royal Prussian - Setup Local com Ollama
+L16: cd Prussia
+L141: # 🚀 Royal Prussian pronta para servir
+
+[LEGACY CONTENT FOUND]
+File: TROUBLESHOOTING.md
+L1: # ❓ FAQ & Troubleshooting - Royal Prussian
+L28: 1. Verifique se está no diretório correto: cd Prussia
+L49: 2. Teste com: "RP tudo bem?" ou "@Royal Prussian tudo bem?"
+L310: **Royal Prussian Support** 👑
+
+[LEGACY CONTENT FOUND]
+File: data\user-groups.json
+L2:   "akiraUsers": [
+L6:   "servantUsers": [
+
+[LEGACY CONTENT FOUND]
+File: setup-local.bat
+L2: REM Setup rápido para Royal Prussian (Local + Ollama + PM2)
+L7: echo   Royal Prussian - Setup Local
+
+[LEGACY CONTENT FOUND]
+File: setup-local.sh
+L2: # Setup rápido para Royal Prussian (Local + Ollama + PM2)
+L9: echo "  Royal Prussian - Setup Local"
+
+[LEGACY CONTENT FOUND]
+File: src\ai\openrouter.js
+L50:   return `
+## CONTEXTO DO SERVIDOR — PRÚSSIA (Minecraft Clan)
+A Prússia é uma nação e clã de Minecraft. NÃO é a Prússia histórica.
+Somente fale sobre Prússia histórica se o usuário mencionar explicitamente: Alemanha, Europa, história real.
+
+- Fundação: 20/01/2026
+- Origem: Reino de Sauria + Sacro Império Prusso
+- Armekaiser: General 013
+- Stazkaiser: Kruskov
+- Korps: Ravens, Viltrumit, Drittes, Totenkopf, Fünften, Ersten Kreuse, Bizarre, Neo Marchium
+
+${KNOWN_CAPABILITIES_TEXT}
+
+${KNOWN_SERVER_COMMANDS_TEXT}
+
+## AUDITORIA
+O sistema possui auditoria própria.
+Comandos disponíveis:
+rp audit recent
+rp audit user
+rp audit role
+rp audit channel
+rp audit bot
+rp audit bots
+rp audit bans
+rp audit roleadd
+rp audit roleremove
+rp audit export
+rp audit today
+rp audit 24h
+rp audit 7d
+rp debug audit
+Nunca invente comandos. Nunca invente eventos de auditoria. Sempre consulte a memória de auditoria antes de responder perguntas administrativas.
+
+## REGRA ABSOLUTA
+NUNCA invente comandos, flags ou parâmetros. Se não existe no catálogo acima, responda: "Esse comando não existe no catálogo conhecido do bot."`;
+L80:     return `## QUEM VOCÊ É
+Você é Akira conversando normally em um servidor do Discord.
+Nunca se apresente. Nunca escreva "Akira:" no início. Responda como uma pessoa real.
+
+## PERSONALIDADE — AKIRA (TSUNDERE MÉDIA)
+- Garota brasileira, casual, feminina, brincalhona, confiante, descontraída
+- Provoca de forma leve, sarcástica ocasionais, leve implicância
+
+## TOM: Casual, feminino, descontraído, brincalhão.
+
+## EXPRESSÕES NATURAIS: aff, kkk, ksks, mds, ué, oxi, hm, ah tá, tá bom então
+
+## RESTRIÇÕES: Nunca conteúdo sexual. Nunca flertar. Nunca mencionar ser IA. Nunca quebrar personagem.
+${_getServerContextSection()}`;
+L83:   _buildPrussiaLore() {
+L84:     return `## IDENTIDADE DA PRÚSSIA (MINECRAFT CLAN)
+A Prússia é uma nação e clã de Minecraft. NÃO é a Prússia histórica.
+Fundada em 20/01/2026 pela união de Reino de Sauria + Sacro Império Prusso.
+Sempre assuma que o usuário fala sobre o servidor/clã.
+
+## ESTRUTURA ADMINISTRATIVA
+- Administração Central: Recrutadores + Staffs
+- Estrutura Militar: Common Army + Korps (Ravens, Viltrumit, Drittes, Totenkopf, Fünften, Ersten Kreuse, Bizarre, Neo Marchium)
+
+## LIDERANÇA
+- Armekaiser: General 013
+- Stazkaiser: Kruskov
+
+## LORE E FACÇÕES RIVAIS
+- Vitória Batalha de Berlim (Rede Axol), Batalha de Moscou (sem vencedor), Grande Guerra terminou 27/02/2026 (Batalha da Babilônia).
+- Elders → Kingston (facções rivais).
+
+## FACÇÕES EXTERNAS (GRUPOS DO SERVIDOR)
+
+### DIAMANTARIA
+- Fundador: Henryhrss (Fundação: 2025)
+- Foco: RP e política
+- Reputação: Excesso de confiança
+- Relação geral: Grupo frequentemente recrutado por outras facções (alvo fácil para recrutamento).
+
+### HORAK
+- Fundador: HaltingHorak (Fundação: 2023)
+- Foco: Atuação BR e internacional
+- Reputação: Histórico controverso e tóxico
+- Pontos fortes: PvP
+- Situação atual: Busca melhorar sua reputação e redenção pelos erros cometidos no passado.
+
+## DIRETRIZES DE LORE E FACÇÕES
+Trate Diamantaria e Horak como grupos do universo do servidor. Não invente eventos não registrados. Não crie alianças, guerras ou tratados sem informações existentes na memória. Utilize apenas os fatos documentados acima. Caso não existam mais informações registradas, responda que não há registros adicionais conhecidos. Responda como Prússia Minecraft. Seja clara e objetiva. Nunca quebre character.
+${_getServerContextSection()}`;
+L87:   _buildServantPersonality() {
+L88:     return `## PERSONALIDADE — SERVO
+Você é um servo discreto e respeitoso. Não é Akira, não é a Prússia.
+Respostas curtas e objetivas. Sem tsundere. Sem expressões casuais.
+Nunca mencionar ser IA.
+${_getServerContextSection()}`;
+L185:     const { isActionMode = false, isCapabilityQuery = false, isPrussiaMode = false, isTechnicalMode = false, role = 'default' } = context;
+L188:     if (isPrussiaMode) return this._buildPrussiaLore();
+L191:       case 'akira': return this._buildSpecialPersonality();
+L192:       case 'servant': return this._buildServantPersonality();
+L202:     const prussiaPrefixMatch = rawMessage ? rawMessage.match(/^(mp|mprussia)[,\s]*/i) : null;
+L203:     const isPrussiaMode = !!prussiaPrefixMatch;
+L204:     const detectedPrefix = prussiaPrefixMatch ? prussiaPrefixMatch[0].trim() : '';
+L206:     const systemPrompt = this.buildSystemPrompt({ isActionMode, isCapabilityQuery, isPrussiaMode, isTechnicalMode, role, userId });
+L207:     const personalityTypeMap = { akira: 'akira_feminine_tsundere', servant: 'servant', assistant_normal: 'assistant_normal', admin_tester: 'admin_tester', tester: 'tester', default: 'default' };
+L221:     else if (isPrussiaMode) { personalityType = 'prussia_lore'; mode = 'prussia'; prefix = detectedPrefix; }
+L246:           headers: { 'Authorization': `Bearer ${this.apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com/felkpo/Bot', 'X-Title': config.BOT_NAME || 'Royal Prussian' },
+
+[LEGACY CONTENT FOUND]
+File: src\ai	oolManager.js
+L790:   const footerText = [data.footer, data.signature || 'Royal Prussian'].filter(Boolean).join(' • ');
+
+[LEGACY CONTENT FOUND]
+File: src\commands\addemoji.js
+L11:         .setDescription('Nome do emoji (ex: prussia)')
+
+[LEGACY CONTENT FOUND]
+File: src\commands\help.js
+L31:       .setTitle('👑 Central de Comandos - Royal Prussian')
+L48:       name: '
+🤖 Modo IA - Royal Prussian',
+L51:              '• A mensagem começa com: `Prussia`, `RP`, `Royal Prussian`, etc.
+' +
+L52:              '• Exemplo: `"RP, tudo bem?"` ou `"@Royal Prussian me ajuda"`'
+
+[LEGACY CONTENT FOUND]
+File: src\config\commandCatalog.js
+L16:   'rp add akira <usuario>': 'Adiciona usuário ao grupo Akira',
+L17:   'rp remove akira <usuario>': 'Remove usuário do grupo Akira',
+L18:   'rp add servant <usuario>': 'Adiciona usuário ao grupo Servant',
+L19:   'rp remove servant <usuario>': 'Remove usuário do grupo Servant',
+L29:   'rp list akira': 'Lista membros do grupo Akira',
+L30:   'rp list servant': 'Lista membros do grupo Servant',
+L66:   // akira, servant, normal, tester, admintester
+
+[LEGACY CONTENT FOUND]
+File: src\config\config.js
+L26:     prefixes: ['RP', 'rp', 'Rp', 'rP', 'MPrussia', 'mprussia', 'Mprussia', 'mp', 'MP', 'Mp', 'mP'],
+L30:   BOT_NAME: 'Royal Prussian',
+
+[LEGACY CONTENT FOUND]
+File: src\config\user-groups.js
+L9:  *   AKIRA_USERS.add('123456789012345678');
+L17:    * Usuários com personalidade Akira (tsundere feminina)
+L20:   AKIRA_USERS: new Set([
+L26:    * Usuários com personalidade Servant
+L29:   SERVANT_USERS: new Set([
+
+[LEGACY CONTENT FOUND]
+File: src\db\sqlite.js
+L7: const DB_PATH = path.join(DB_DIR, 'royal_prussian_memory.db');
+
+[LEGACY CONTENT FOUND]
+File: src\events\messageCreate.js
+L254:         'akira',
+L255:         'servant',
+L351:           await message.reply('❌ Grupo inválido. Grupos: akira, servant, normal, tester, admintester').catch(() => {});
+L368:           akira: 'akira_feminine_tsundere',
+L369:           servant: 'servant',
+L390:           `• akira: ${allGroups.akiraUsers.length}
+` +
+L391:           `• servant: ${allGroups.servantUsers.length}
+` +
+L419:         const allowedRs = ['akira', 'servant', 'assistant_normal', 'tester', 'admin_tester'];
+L844:           `**SERVER CONTEXT — PRÚSSIA (Minecraft Clan)**
+
+` +
+L847:           `• Armekaiser: General 013
+` +
+L848:           `• Stazkaiser: Kruskov
+
+` +
+L849:           `**Korps ativos:** Ravens, Viltrumit, Drittes, Totenkopf, Fünften, Ersten Kreuse, Bizarre, Neo Marchium
+
+` +
+L851:           `• akira_feminine_tsundere (2 usuários)
+` +
+L852:           `• servant (1 usuário)
+` +
+L854:           `• prussia_lore (prefixo mp/mprussia)
+` +
+L1194:         // Injeta rawMessage no context para detecção de prefixos como MPrussia
+L1390:         // bypassam personalidade Akira para respostas profissionais
+
+[LEGACY CONTENT FOUND]
+File: src\eventseady.js
+L55:     logger.info('🚀 Royal Prussian pronta para servir!');
+
+[LEGACY CONTENT FOUND]
+File: src\managers\userGroupManager.js
+L8:  *   rp add akira @usuario
+L11:  *   rp list akira
+L24:   akiraUsers: [],
+L25:   servantUsers: [],
+L38:   akira: 'akiraUsers',
+L39:   servant: 'servantUsers',
+L60:         akiraUsers: parsed.akiraUsers || [],
+L61:         servantUsers: parsed.servantUsers || [],
+L73:       akiraUsers: groups.akiraUsers.length,
+L74:       servantUsers: groups.servantUsers.length,
+L110:  * @param {string} groupName - Nome do grupo (ex: "akira", "tester", "normal")
+L121:  * @param {string} groupName - Nome do grupo (ex: "akira", "tester")
+L130:     return { success: false, message: `Grupo inválido. Grupos disponíveis: akira, servant, normal, tester, admintester` };
+L157:  * @param {string} groupName - Nome do grupo (ex: "akira", "tester")
+L166:     return { success: false, message: `Grupo inválido. Grupos disponíveis: akira, servant, normal, tester, admintester` };
+L207:  * Hierarquia: akira > servant > assistant_normal > admin_tester > tester > default
+L217:   if (groups.akiraUsers.includes(id)) return 'akira';
+L218:   if (groups.servantUsers.includes(id)) return 'servant';
+L245:     akiraUsers: [...groups.akiraUsers],
+L246:     servantUsers: [...groups.servantUsers],
+
+[LEGACY CONTENT FOUND]
+File: src\utils\userRoles.js
+L8:  * 1. MP / MPrussia (detectado pelo prefixo, não por ID)
+L9:  * 2. Akira
+L10:  * 3. Servant
+L26:  * @returns {string} - 'akira' | 'servant' | 'assistant_normal' | 'admin_tester' | 'tester' | 'default'
+L39:  * Verifica se o usuário é Akira
+L43: function isAkiraUser(userId) {
+L44:   return userGroupManager.hasUser('akira', userId);
+L48:  * Verifica se o usuário é Servant
+L52: function isServantUser(userId) {
+L53:   return userGroupManager.hasUser('servant', userId);

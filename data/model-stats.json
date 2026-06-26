@@ -1,0 +1,16 @@
+{
+  "nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "success": 0,
+    "failed": 1,
+    "rateLimit": 1,
+    "totalResponseTime": 0,
+    "calls": 1
+  },
+  "meta-llama/llama-3.3-70b-instruct:free": {
+    "success": 0,
+    "failed": 1,
+    "rateLimit": 1,
+    "totalResponseTime": 0,
+    "calls": 1
+  }
+}

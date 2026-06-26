@@ -2,7 +2,7 @@ const { Events, REST, Routes } = require('discord.js');
 const { readdirSync } = require('fs');
 const { join } = require('path');
 const logger = require('../utils/logger');
-const ollama = require('../ai/ollama');
+const aiProvider = require('../ai/provider');
 const config = require('../config/config');
 
 module.exports = {
@@ -38,17 +38,17 @@ module.exports = {
       logger.warn('⚠️ CLIENT_ID não configurada - comandos não foram registrados');
     }
 
-    // Testa conexão com Ollama
+    // Testa conexão com o provider de IA (OpenRouter)
     if (config.FEATURES.AI_ENABLED) {
       try {
-        const isHealthy = await ollama.healthCheck();
+        const isHealthy = await aiProvider.healthCheck();
         if (isHealthy) {
-          logger.info('✅ Ollama conectada e funcionando', { url: config.OLLAMA_URL, model: config.OLLAMA_MODEL });
+          logger.info('✅ OpenRouter conectado e funcionando', { url: config.OPENROUTER_URL, model: config.OPENROUTER_MODEL });
         } else {
-          logger.warn('⚠️ Ollama conectada mas com problemas');
+          logger.warn('⚠️ OpenRouter com problemas - verifique a OPENROUTER_API_KEY');
         }
       } catch (error) {
-        logger.error('❌ Erro ao conectar com Ollama', { error: error.message });
+        logger.error('❌ Erro ao conectar com OpenRouter', { error: error.message });
       }
     }
 

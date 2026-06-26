@@ -1,4 +1,4 @@
-# 🚀 DEPLOYMENT & OTIMIZAÇÃO - Royal Prussian
+# 🚀 DEPLOYMENT & OTIMIZAÇÃO - Tenkai
 
 ## 📋 Checklist Pré-Produção
 
@@ -92,7 +92,7 @@
 2. **Clone repositório**
    ```bash
    git clone https://seu-repo.git
-   cd Prussia
+   cd Tenkai
    ```
 
 3. **Instale Node.js**
@@ -115,14 +115,14 @@
 6. **Inicie com PM2**
    ```bash
    npm install -g pm2
-   pm2 start index.js --name "royal-prussian"
+   pm2 start index.js --name "tenkai"
    pm2 save
    pm2 startup
    ```
 
 7. **Logs**
    ```bash
-   pm2 logs royal-prussian
+   pm2 logs tenkai
    ```
 
 ### Docker
@@ -144,8 +144,8 @@ CMD ["npm", "start"]
 
 **Build e run:**
 ```bash
-docker build -t royal-prussian .
-docker run -d --name bot royal-prussian
+docker build -t tenkai .
+docker run -d --name bot tenkai
 ```
 
 ---
@@ -299,10 +299,10 @@ const transport = new winston.transports.DailyRotateFile({
 pm2 status
 
 # Reinicie
-pm2 restart royal-prussian
+pm2 restart tenkai
 
 # Veja logs
-pm2 logs royal-prussian
+pm2 logs tenkai
 ```
 
 ### Memória Crescente
@@ -392,7 +392,7 @@ if (!userId || typeof userId !== 'string') {
 const secrets = require('aws-sdk').SecretsManager();
 
 const config = await secrets.getSecretValue({
-  SecretId: 'royal-prussian'
+  SecretId: 'tenkai'
 }).promise();
 ```
 
@@ -451,7 +451,7 @@ Use serviços como:
 
 ---
 
-**Royal Prussian está pronta para produção!** 👑 🚀
+**Tenkai está pronta para produção!** 👑 🚀
 
 Para suporte, consulte os documentos:
 - `README.md` - Visão geral

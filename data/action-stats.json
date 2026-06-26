@@ -1,0 +1,21 @@
+{
+  "missingParameters": {
+    "send_message": {
+      "content": 1
+    },
+    "purge_messages": {
+      "count": 2
+    }
+  },
+  "actionExecutions": {
+    "reply": 1,
+    "send_message": 3,
+    "purge_messages": 2,
+    "ban_user": 3,
+    "unban_user": 1,
+    "kick_user": 1
+  },
+  "actionFailures": {},
+  "lastReset": null,
+  "lastUpdate": "2026-06-12T00:49:38.158Z"
+}

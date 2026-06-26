@@ -71,14 +71,8 @@ AI: {
   messageTimeout: 30000,
   cooldownMs: 2000,
   prefixes: [
-    'Prussia', 
+    'rp', 
     'prussia', 
-    'royal prussian', 
-    'Royal Prussian', 
-    'RP', 
-    'rp',
-    'Rp',
-    'rP',
     'seu_novo_prefixo'  // Adicione aqui
   ],
 }
