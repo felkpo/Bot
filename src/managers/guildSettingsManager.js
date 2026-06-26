@@ -8,6 +8,7 @@ class GuildSettingsManager {
   constructor() {
     this.settings = {};
     this.load();
+    logger.info('[QUICK PUNISHMENT INIT] Guild Settings Manager inicializado.');
   }
 
   load() {
@@ -22,7 +23,7 @@ class GuildSettingsManager {
     }
   }
 
-  save() {
+  saveGuildSettings() {
     try {
       const dir = path.dirname(SETTINGS_FILE);
       if (!fs.existsSync(dir)) {
@@ -34,34 +35,45 @@ class GuildSettingsManager {
     }
   }
 
-  getGuildConfig(guildId) {
+  getGuildSettings(guildId) {
     if (!guildId) return {};
     if (!this.settings[guildId]) {
       this.settings[guildId] = {
         quickPunishment: false // Desativado por padrão
       };
-      this.save();
+      this.saveGuildSettings();
     }
     return this.settings[guildId];
   }
 
-  getQuickPunishment(guildId) {
-    const config = this.getGuildConfig(guildId);
+  isQuickPunishmentEnabled(guildId) {
+    const config = this.getGuildSettings(guildId);
+    logger.info('[QUICK PUNISHMENT STATUS]', {
+      guildId,
+      status: config.quickPunishment ? 'ATIVADO' : 'DESATIVADO'
+    });
     return !!config.quickPunishment;
   }
 
-  setQuickPunishment(guildId, enabled) {
+  setQuickPunishmentEnabled(guildId, enabled) {
     if (!guildId) return false;
-    const config = this.getGuildConfig(guildId);
+    const config = this.getGuildSettings(guildId);
     config.quickPunishment = !!enabled;
-    this.save();
-    
-    logger.info('[QUICK PUNISHMENT]', {
-      enabled: config.quickPunishment,
-      guildId
-    });
-    
+    this.saveGuildSettings();
+
+    if (config.quickPunishment) {
+      logger.info('[QUICK PUNISHMENT ENABLED]', { guildId });
+    } else {
+      logger.info('[QUICK PUNISHMENT DISABLED]', { guildId });
+    }
+
     return config.quickPunishment;
+  }
+
+  toggleQuickPunishment(guildId) {
+    if (!guildId) return false;
+    const currentState = this.isQuickPunishmentEnabled(guildId);
+    return this.setQuickPunishmentEnabled(guildId, !currentState);
   }
 }
 

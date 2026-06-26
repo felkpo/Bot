@@ -627,24 +627,34 @@ module.exports = {
           return;
         }
         const action = cmdParts[1].toLowerCase();
-        
+
         if (action === 'on') {
-          guildSettingsManager.setQuickPunishment(message.guildId, true);
+          guildSettingsManager.setQuickPunishmentEnabled(message.guildId, true);
           await message.reply('⚡ QuickPunishment ativado para este servidor.').catch(() => {});
           return;
         }
-        
+
         if (action === 'off') {
-          guildSettingsManager.setQuickPunishment(message.guildId, false);
+          guildSettingsManager.setQuickPunishmentEnabled(message.guildId, false);
           await message.reply('🐢 QuickPunishment desativado para este servidor.').catch(() => {});
           return;
         }
-        
+
+        if (action === 'toggle') {
+          const newState = guildSettingsManager.toggleQuickPunishment(message.guildId);
+          const statusText = newState ? 'ATIVADO' : 'DESATIVADO';
+          await message.reply(`QuickPunishment foi alterado para: **${statusText}**.`).catch(() => {});
+          return;
+        }
+
         if (action === 'status') {
-          const status = guildSettingsManager.getQuickPunishment(message.guildId) ? 'ATIVADO' : 'DESATIVADO';
+          const status = guildSettingsManager.isQuickPunishmentEnabled(message.guildId) ? 'ATIVADO' : 'DESATIVADO';
           await message.reply(`QuickPunishment está atualmente **${status}**.`).catch(() => {});
           return;
         }
+
+        await message.reply('Comando QuickPunishment inválido. Use `on`, `off`, `toggle` ou `status`.').catch(() => {});
+        return;
       }
 
       // rp audit — Sistema de Auditoria
@@ -1286,7 +1296,13 @@ module.exports = {
       }
 
       // NATIVE EXECUTION (Substitui QuickPunishment + Força execução direta)
-      const isQuickPunishmentEnabled = guildSettingsManager.isQuickPunishmentEnabled(message.guildId);
+      let isQuickPunishmentEnabled = false;
+      if (guildSettingsManager && typeof guildSettingsManager.isQuickPunishmentEnabled === 'function') {
+        isQuickPunishmentEnabled = guildSettingsManager.isQuickPunishmentEnabled(message.guildId);
+      } else {
+        // Não trava a IA, apenas loga o erro de configuração.
+        logger.error('[QUICK PUNISHMENT ERROR] Método isQuickPunishmentEnabled inexistente ou manager não carregado.');
+      }
 
       if ((isNativeCommand || isQuickPunishmentEnabled) && isActionRequest && resolvedActionType) {
         // Ações nativas suportadas
