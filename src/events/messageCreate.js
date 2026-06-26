@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const aiProvider = require('../ai/provider');
 const contextManager = require('../ai/contextManager');
 const { shouldActivateAI, stripPrefix } = require('../utils/regex');
+const { getToolCatalogForPrompt } = require('../ai/toolCatalog');
 const { tryParseStructuredResponse, executeToolAction } = require('../ai/toolManager');
 const config = require('../config/config');
 const userGroupManager = require('../managers/userGroupManager');
@@ -14,6 +15,12 @@ const { getCatalogMarkdown, getCatalogText, KNOWN_SERVER_COMMANDS } = require('.
 const { resolveTarget } = require('../utils/helpers');
 const fs = require('fs');
 const path = require('path');
+
+// Universal regex to detect an intent to perform an action.
+const UNIVERSAL_ACTION_VERBS_REGEX = new RegExp(
+  '\\b(manda|mande|envia|envie|posta|poste|publica|publique|cria|crie|remove|remova|apaga|apague|deleta|delete|bane|banir|desbane|desbanir|timeout|mute|unmute|warn|advertir|kick|expulsa|expulsar|adiciona|adicione|tira|tirar|d[aá]|coloca|coloque|move|mover|renomeia|renomeie|fecha|feche|abre|abra|tranca|destranca|faz|faça|gera|gere|configura|configure|ativa|desativa|liga|desliga|exporta|exporte|importa|importa|consulta|consulte|mostra|mostre|lista|liste|pesquisa|pesquise|procura|procure|verifica|verifique|quem|qual|audita|auditar)\\b',
+  'i'
+);
 
 // Timeout de diagnóstico por etapa (5 segundos)
 const DIAGNOSTIC_TIMEOUT = 5000;
@@ -1179,183 +1186,28 @@ module.exports = {
         // Injeta rawMessage no context para detecção de prefixos como MPrussia
         context.rawMessage = content;
 
-      const ACTION_MAPPING = [
-        { type: 'unban_user', regex: /^(?:unban|desban|desbane|desbanir|remove ban|remover ban|retira ban|retirar ban)\b/i, loose: /\b(?:unban|desban|desbane|desbanir|remove ban|remover ban|retira ban|retirar ban)\b/i },
-        { type: 'untimeout_user', regex: /^(?:untimeout|remove timeout|remover timeout|retira timeout|retirar timeout)\b/i, loose: /\b(?:untimeout|remove timeout|remover timeout|retira timeout|retirar timeout)\b/i },
-        { type: 'untimeout_user', regex: /^(?:unmute|desmuta|desmutar|remove mute|remover mute|retira mute|retirar mute)\b/i, loose: /\b(?:unmute|desmuta|desmutar|remove mute|remover mute|retira mute|retirar mute)\b/i },
-        { type: 'ban_user', regex: /^(?:ban|bane|banir)\b/i, loose: /\b(?:ban|bane|banir)\b/i },
-        { type: 'kick_user', regex: /^(?:kick|expulsa|expulsar)\b/i, loose: /\b(?:kick|expulsa|expulsar)\b/i },
-        { type: 'timeout_user', regex: /^(?:timeout|mute|silencia|silenciar)\b/i, loose: /\b(?:timeout|mute|silencia|silenciar)\b/i },
-        { type: 'purge_messages', regex: /^(?:apaga|apagar|delete|deleta|deletar|purge|limpa|limpar|apaga mensagens|apaga msgs)\b/i, loose: /\b(?:apaga|apagar|delete|deleta|deletar|purge|limpa|limpar|apaga mensagens|apaga msgs)\b/i },
-        { type: 'add_role', regex: null, loose: /\b(?:add role|adiciona cargo|dar cargo|remove cargo|tirar cargo|cargo)\b/i },
-        { type: 'create_channel', regex: null, loose: /\b(?:cria canal|criar canal|novo canal|delete canal|deleta canal|apaga canal|remove canal)\b/i },
-        { type: 'send_message', regex: null, loose: /\b(?:anuncio|anúncio|comunicado|aviso|manda mensagem|envia mensagem|poste mensagem|fala no canal)\b/i },
-        { type: 'send_dm', regex: null, loose: /\b(?:dm|manda dm|envia dm|mensagem privada)\b/i },
-        { type: 'warn_user', regex: /^(?:warn|advertir)\b/i, loose: /\b(?:warn|advertir|advertencia|advertência|avisa usuario)\b/i }
-      ];
+      // ══════════════════════════════════════════════════════════════════════
+      // ACTION MODE UNIVERSAL CLASSIFIER
+      // ══════════════════════════════════════════════════════════════════════
+      const lowerMessage = userMessage.toLowerCase().trim();
+      const isActionRequest = UNIVERSAL_ACTION_VERBS_REGEX.test(lowerMessage);
 
-      logger.info('[ACTION MAPPING CHECK]', {
-        exists: Boolean(ACTION_MAPPING),
-        type: typeof ACTION_MAPPING
-      });
-
-      let isActionRequest = false;
-      let matchedActionKeyword = null;
-      let resolvedActionType = null;
-      let isNativeCommand = false;
-
-      // LOG DE AUDITORIA — input completo do detector de ação
-      logger.info('[ACTION DETECTION INPUT]', {
+      logger.info('[ACTION CLASSIFIER]', {
         requestId,
-        messageOriginal: content.substring(0, 200),
-        messageWithoutPrefix: userMessage.substring(0, 200),
-        normalizedMessage: lowerMessage.substring(0, 200),
-        arquivo: 'src/events/messageCreate.js'
-      });
-
-      // 1. Tenta matching estrito (Native Commands no início da string)
-      for (const mapping of ACTION_MAPPING) {
-        if (mapping.regex) {
-          const match = lowerMessage.match(mapping.regex);
-          if (match) {
-            isActionRequest = true;
-            isNativeCommand = true;
-            matchedActionKeyword = match[0];
-            resolvedActionType = mapping.type;
-            break;
-          }
-        }
-      }
-
-      // 2. Tenta matching solto (Action Mode pre-resolution)
-      if (!isActionRequest) {
-        for (const mapping of ACTION_MAPPING) {
-          if (mapping.loose) {
-            const match = lowerMessage.match(mapping.loose);
-            if (match) {
-              isActionRequest = true;
-              matchedActionKeyword = match[0];
-              resolvedActionType = mapping.type;
-              break;
-            }
-          }
-        }
-      }
-
-      logger.info('[ACTION DETECTOR SAFE PATH]', {
-        matchedKeyword: matchedActionKeyword,
-        isActionMode: isActionRequest
-      });
-
-      // LOG DE AUDITORIA — resultado da detecção
-      logger.info('[ACTION DETECTION RESULT]', {
-        requestId,
-        matchedKeyword: matchedActionKeyword,
-        resolvedActionType,
-        isNativeCommand,
-        isActionMode: isActionRequest,
-        messagePreview: lowerMessage.substring(0, 100),
+        isActionRequest,
+        message: lowerMessage.substring(0, 100),
         arquivo: 'src/events/messageCreate.js'
       });
 
       if (isActionRequest) {
+        logger.info('[ACTION CAPABILITY FOUND]', {
+          requestId,
+          reason: 'Universal action verb detected.',
+          arquivo: 'src/events/messageCreate.js'
+        });
         context.isActionMode = true;
-        context.resolvedActionType = resolvedActionType;
-        
-        // Limpa contexto isolando Action Mode
-        context.history = [];
-        context.userMemory = '';
-        context.channelMemory = '';
-        context.serverMemory = '';
-
-        logger.info('[ACTION MODE ISOLATED]', {
-          requestId,
-          userId: context.userId
-        });
-
-        logger.info('[ACTION PRE RESOLVED]', {
-          actionType: resolvedActionType,
-          matchedRegex: matchedActionKeyword
-        });
-
-        logger.info('[ACTION MODE DETECTED]', {
-          requestId,
-          userId: context.userId,
-          keyword: matchedActionKeyword,
-          messagePreview: userMessage.substring(0, 100),
-          arquivo: 'src/events/messageCreate.js'
-        });
-        logger.info('[ACTION MODE OVERRIDE]', {
-          requestId,
-          userId: context.userId,
-          previousRole: role,
-          finalMode: "action",
-          reason: `keyword_match:${matchedActionKeyword}`,
-          arquivo: 'src/events/messageCreate.js'
-        });
-      }
-
-      // NATIVE EXECUTION (Substitui QuickPunishment + Força execução direta)
-      let isQuickPunishmentEnabled = false;
-      if (guildSettingsManager && typeof guildSettingsManager.isQuickPunishmentEnabled === 'function') {
-        isQuickPunishmentEnabled = guildSettingsManager.isQuickPunishmentEnabled(message.guildId);
-      } else {
-        // Não trava a IA, apenas loga o erro de configuração.
-        logger.error('[QUICK PUNISHMENT ERROR] Método isQuickPunishmentEnabled inexistente ou manager não carregado.');
-      }
-
-      if ((isNativeCommand || isQuickPunishmentEnabled) && isActionRequest && resolvedActionType) {
-        // Ações nativas suportadas
-        const nativeActions = ['ban_user', 'unban_user', 'kick_user', 'timeout_user', 'untimeout_user', 'mute_user', 'unmute_user', 'warn_user', 'purge_messages'];
-        
-        if (nativeActions.includes(resolvedActionType)) {
-          logger.info('[NATIVE ADMIN COMMAND EXECUTE]', {
-            action: resolvedActionType,
-            target: lowerMessage,
-            moderator: message.author.tag,
-            isQuickPunishment: isQuickPunishmentEnabled,
-            isNativeRegex: isNativeCommand
-          });
-
-          // Constrói um parsedAction falso extraindo dados do regex
-          let target = null;
-          let count = 0;
-          let duration = null;
-          let reason = "Ação via comando nativo";
-
-          // Extração rudimentar
-          const mentionMatch = userMessage.match(/<@!?(\d+)>/);
-          if (mentionMatch) target = mentionMatch[1];
-          else {
-            const idMatch = userMessage.match(/\b(\d{17,20})\b/);
-            if (idMatch) target = idMatch[1];
-          }
-
-          if (resolvedActionType === 'purge_messages') {
-            const numMatch = userMessage.match(/\b(\d+)\b/);
-            if (numMatch) count = parseInt(numMatch[1], 10);
-          }
-          
-          if (resolvedActionType === 'timeout_user') {
-            const durMatch = userMessage.match(/\b(\d+[dhms]?)\b/i);
-            if (durMatch && durMatch[1] !== target) duration = durMatch[1];
-          }
-
-          const parsedAction = {
-            action: resolvedActionType,
-            params: { target, count, duration, reason }
-          };
-
-          const actionResult = await executeToolAction(parsedAction, message);
-          
-          if (actionResult.success) {
-            await sendDiscordMessage(message, { content: actionResult.summary, allowedMentions: { repliedUser: false } }, 'ação bem-sucedida', requestId);
-          } else {
-            const errorContent = actionResult.error ? `❌ ${actionResult.error}` : actionResult.summary || '❌ Ação não executada.';
-            await sendDiscordMessage(message, errorContent, 'erro de ação', requestId);
-          }
-          return; // BYPASS COMPLETO DA IA
-        }
+        // Inject the tool catalog directly into the context for the provider to use.
+        context.toolCatalog = getToolCatalogForPrompt();
       }
 
         // Log de personalidade selecionada
@@ -1397,6 +1249,30 @@ module.exports = {
         
         const parsedAction = tryParseStructuredResponse(response);
         
+        // Handle fallback from Action Mode to conversational mode
+        if (parsedAction && parsedAction.action === 'fallback_to_chat') {
+          logger.info('[ACTION FALLBACK TO CHAT]', {
+            requestId,
+            reason: parsedAction.params?.reason || 'Model determined no suitable tool.',
+            arquivo: 'src/events/messageCreate.js'
+          });
+
+          // Re-run generation in conversational mode
+          context.isActionMode = false;
+          delete context.toolCatalog; // Clean up context
+          const conversationalResponse = await aiProvider.generateResponse(userMessage, context);
+
+          // Send the new conversational response and save context, then exit.
+          await contextManager.addMessage(message.author.id, guildId, 'user', userMessage, message.channelId, message.channel.name, message.author.tag);
+          await contextManager.addMessage(message.author.id, guildId, 'assistant', conversationalResponse, message.channelId, message.channel.name, config.BOT_NAME);
+          await sendDiscordMessage(message, conversationalResponse, 'resposta de fallback', requestId);
+
+          if (role === 'tester' && !isAdminUser) {
+            testerUsageManager.addUsage(message.author.id, 1);
+          }
+          return;
+        }
+
         if (context.isActionMode) {
           let expected = 'unknown';
           const lowerMsg = userMessage.toLowerCase();
@@ -1428,6 +1304,12 @@ module.exports = {
         
         if (parsedAction && parsedAction.action) {
           logger.debug('[DEBUG] Ação detectada na resposta', {
+            action: parsedAction.action,
+            params: parsedAction.params
+          });
+          logger.info('[ACTION JSON GENERATED]', {
+            requestId,
+            arquivo: 'src/events/messageCreate.js',
             action: parsedAction.action,
             params: parsedAction.params
           });
