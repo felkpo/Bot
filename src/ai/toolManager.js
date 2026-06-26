@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const logger = require('../utils/logger');
 const contextManager = require('./contextManager');
+const guildSettingsManager = require('../managers/guildSettingsManager');
 const config = require('../config/config');
 const { collectResponse, isAdmin, botHasPermission, findChannel } = require('../utils/helpers');
 
@@ -472,7 +473,18 @@ function validateRequiredParams(actionType, getParam) {
  *   - demais: apenas se estiver em DANGEROUS_ACTIONS
  *   - lock_channel, unlock_channel, remove_timeout, warn_user, etc: NÃO confirmam
  */
-function requiresDangerousConfirmation(actionType, count, durationMs) {
+function requiresDangerousConfirmation(actionType, count, durationMs, guildId) {
+  // QuickPunishment mode: se ativado, NUNCA pede confirmação.
+  if (guildSettingsManager.isQuickPunishmentEnabled(guildId)) {
+    logger.info('[CONFIRMATION CHECK] SKIPPED', {
+      action: actionType,
+      reason: 'QuickPunishment mode is enabled for this guild.',
+      guildId,
+      arquivo: 'src/ai/toolManager.js'
+    });
+    return false;
+  }
+
   if (actionType === 'purge_messages') {
     const result = count >= PURGE_DANGEROUS_THRESHOLD;
     logger.info('[CONFIRMATION CHECK]', {
@@ -1137,7 +1149,7 @@ async function executeToolAction(parsedAction, message) {
   }
 
   // Nova política: usa requiresDangerousConfirmation() — considera count/duration por action
-  const confirmationRequired = requiresDangerousConfirmation(actionType, count, duration);
+  const confirmationRequired = requiresDangerousConfirmation(actionType, count, duration, message.guildId);
   const targetName = simplifyTargetName(targetMember, parsedAction);
 
   // Log [ACTION CONFIRMATION] — registra decisão de confirmação para auditoria
