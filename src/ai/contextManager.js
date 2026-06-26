@@ -1,4 +1,3 @@
-const path = require('path');
 const sqlite = require('../db/sqlite');
 const config = require('../config/config');
 const logger = require('../utils/logger');

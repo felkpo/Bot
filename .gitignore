@@ -1,4 +1,9 @@
+# Credenciais secretas
 .env
-.env
+
+# Dependências do Node.js
 node_modules/
+
+# Arquivos de log e dados de tempo de execução
 *.log
+/data/
