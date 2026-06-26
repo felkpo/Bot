@@ -231,7 +231,7 @@ module.exports = {
       const step2Start = Date.now();
       const step2Timeout = createDiagnosticTimeout('verificação de trigger', step2Start);
       
-      const shouldActivate = shouldActivateAI(content, isMentioned);
+      const shouldActivate = shouldActivateAI(content, isMentioned, message);
       clearTimeout(step2Timeout);
 
       logger.info('[TRIGGER RESULT]', {

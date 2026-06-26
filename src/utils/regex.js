@@ -9,21 +9,37 @@ const logger = require('./logger');
  *
  * @param {string} content - Conteúdo da mensagem
  * @param {boolean} isMentioned - Se o bot foi mencionado
+ * @param {import('discord.js').Message} [message] - O objeto da mensagem, para verificações adicionais
  * @returns {boolean} - Se deve ativar a IA
  */
-function shouldActivateAI(content, isMentioned) {
+function shouldActivateAI(content, isMentioned, message) {
   const trimmed = (content || '').trim();
 
-  // 1) Menção sempre ativa
+  // 1) Verificação de Menção
   if (isMentioned) {
-    logger.info('[TRIGGER]', {
-      message: trimmed.substring(0, 80),
-      mentioned: true,
-      prefixMatched: false,
-      triggerAccepted: true,
-      motivo: 'bot mencionado'
-    });
-    return true;
+    // A menção só ativa a IA se NÃO houver @everyone ou @here.
+    // Se houver, a ativação dependerá exclusivamente do prefixo.
+    if (message && (message.mentions.everyone || message.mentions.here)) {
+      logger.info('[TRIGGER]', {
+        message: trimmed.substring(0, 80),
+        mentioned: true,
+        hasMassMention: true,
+        prefixMatched: false,
+        triggerAccepted: false, // Será reavaliado pela verificação de prefixo
+        motivo: 'bot mencionado, mas com @everyone/@here; verificando prefixos'
+      });
+      // Não retorna true, deixa a verificação de prefixo decidir.
+    } else {
+      // Menção "limpa" (sem @everyone/@here) sempre ativa.
+      logger.info('[TRIGGER]', {
+        message: trimmed.substring(0, 80),
+        mentioned: true,
+        prefixMatched: false,
+        triggerAccepted: true,
+        motivo: 'bot foi mencionado diretamente ou em resposta'
+      });
+      return true;
+    }
   }
 
   // 2) Verifica cada prefixo
