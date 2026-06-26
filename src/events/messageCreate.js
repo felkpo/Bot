@@ -251,6 +251,10 @@ module.exports = {
         return;
       }
 
+      // Variáveis de mensagem normalizadas, declaradas uma única vez para reutilização.
+      const userMessage = stripPrefix(content);
+      const lowerMessage = userMessage.toLowerCase().trim();
+
       // ══════════════════════════════════════════════════════════════════════
       // AI ACCESS CONTROL — auditoria de acesso
       // ══════════════════════════════════════════════════════════════════════
@@ -299,9 +303,8 @@ module.exports = {
       // ══════════════════════════════════════════════════════════════════════
       // COMANDOS DE ADMIN — gerenciamento de user groups
       // ══════════════════════════════════════════════════════════════════════
-      const userMessageRaw = stripPrefix(content);
-      const cmdParts = userMessageRaw.trim().split(/\s+/);
-      const cmd = cmdParts[0] ? cmdParts[0].toLowerCase() : '';
+      const cmdParts = lowerMessage.split(/\s+/);
+      const cmd = cmdParts[0] || '';
 
       // Helper para extrair userId de menção ou ID direto
       function extractUserId(input) {
@@ -1043,7 +1046,6 @@ module.exports = {
         // ══════════════════════════════════════════════════════════════════
         // DIRECT AUDIT NATURAL QUERY BYPASS
         // ══════════════════════════════════════════════════════════════════
-        const lowerMessage = userMessage.toLowerCase().trim();
         logger.info('[AUDIT BYPASS START]');
         
         let auditBypassHandled = false;
@@ -1189,7 +1191,6 @@ module.exports = {
       // ══════════════════════════════════════════════════════════════════════
       // ACTION MODE UNIVERSAL CLASSIFIER
       // ══════════════════════════════════════════════════════════════════════
-      const lowerMessage = userMessage.toLowerCase().trim();
       const isActionRequest = UNIVERSAL_ACTION_VERBS_REGEX.test(lowerMessage);
 
       logger.info('[ACTION CLASSIFIER]', {
