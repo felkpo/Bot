@@ -76,6 +76,11 @@ const logger = require('./src/utils/logger');
 const config = require('./src/config/config');
 console.log('[STARTUP 2] Configuração carregada');
 
+// [STARTUP 2.5] Validação da configuração
+console.log('[STARTUP 2.5] Validando configuração...');
+const { runValidation } = require('./src/config/validator');
+runValidation();
+
 // Valida configuração
 if (!config.DISCORD_TOKEN) {
   logger.error('❌ DISCORD_TOKEN não configurada no arquivo .env');

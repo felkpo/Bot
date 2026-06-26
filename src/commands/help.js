@@ -56,14 +56,6 @@ module.exports = {
         });
     }
 
-    embed.addFields({
-      name: '\n🤖 Modo IA - Royal Prussian',
-      value: 'A IA responde quando:\n' +
-             '• O bot é mencionado\n' +
-             '• A mensagem começa com: `Prussia`, `RP`, `Royal Prussian`, etc.\n' +
-             '• Exemplo: `"RP, tudo bem?"` ou `"@Royal Prussian me ajuda"`'
-    });
-
     await interaction.reply({ embeds: [embed], ephemeral: true });
   }
 };

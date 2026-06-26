@@ -43,7 +43,8 @@ module.exports = {
       try {
         const isHealthy = await aiProvider.healthCheck();
         if (isHealthy) {
-          logger.info('✅ OpenRouter conectado e funcionando', { url: config.OPENROUTER_URL, model: config.OPENROUTER_MODEL });
+          const modelInfo = aiProvider.getModelInfo();
+          logger.info(`✅ Sistema de IA conectado e funcionando. Provider primário: ${modelInfo.provider}`, { model: modelInfo.name });
         } else {
           logger.warn('⚠️ OpenRouter com problemas - verifique a OPENROUTER_API_KEY');
         }

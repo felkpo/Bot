@@ -4,9 +4,10 @@ const config = require('../config/config');
 
 class OllamaClient {
   constructor() {
-    this.url = (process.env.OLLAMA_URL || config.OLLAMA_URL || 'http://localhost:11434').replace(/\/$/, '');
+    const ollamaConfig = config.providers?.ollama;
+    this.url = (ollamaConfig?.url || 'http://localhost:11434').replace(/\/$/, '');
     // PRIORIDADE MÁXIMA: process.env.OLLAMA_MODEL (do .env) sempre tem precedência
-    this.modelName = process.env.OLLAMA_MODEL || config.OLLAMA_MODEL || 'qwen2.5:7b';
+    this.modelName = ollamaConfig?.model || 'qwen2.5:7b';
     this.enableThinking = process.env.ENABLE_THINKING !== 'false'; // Padrão: true (comportamento atual)
     this.modelInfo = null;
     this.initialized = this.initialize();
@@ -15,7 +16,7 @@ class OllamaClient {
 
   async initialize() {
     try {
-      // Log de startup exibindo o modelo carregado (prioridade do .env)
+      carregado (prioridade do .env)
       logger.info(`📋 Modelo carregado: ${this.modelName}`);
       logger.info('[Ollama] Iniciando conexão...', { url: this.url, model: this.modelName });
 

@@ -1,5 +1,6 @@
 const fetch = global.fetch || require('node-fetch');
 const logger = require('../utils/logger');
+const config = require('../config/config');
 
 const GEMINI_MODEL_POOL = [
   'gemini-2.5-flash',
@@ -11,7 +12,8 @@ const GEMINI_MODEL_POOL = [
 
 class GeminiProvider {
   constructor() {
-    this.apiKey = process.env.GEMINI_API_KEY || '';
+    const geminiConfig = config.providers?.gemini;
+    this.apiKey = geminiConfig?.apiKey || '';
     this.isAvailable = false;
     this.activePool = [...GEMINI_MODEL_POOL];
   }

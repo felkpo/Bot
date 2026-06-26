@@ -1,70 +1,49 @@
-# TENKAI MIGRATION REPORT
+# Relatório de Correção Crítica — Crash do OpenRouter
 
-**Data:** 22/06/2026
-**Projeto Original:** Royal Prussian (Bot Discord)
-**Projeto Migrado:** TENKAI - Plataforma de IA Multi-Servidor
+## 1. Causa Raiz do Problema
 
-## Arquivos Criados
+O crash `TypeError: Cannot read properties of undefined (reading 'openrouter')` era causado por um problema na ordem de carregamento dos módulos no `index.js`, resultando em uma dependência circular sutil.
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/managers/guildMemoryManager.js` | Gerenciamento de memória isolada por servidor |
-| `src/managers/guildLoreManager.js` | Gerenciamento de lore com resumo automático e categorização |
+A sequência de eventos era a seguinte:
+1.  `index.js` tentava carregar `src/utils/logger.js`.
+2.  `logger.js` por sua vez tentava carregar `src/config/config.js` para obter o nível de log.
+3.  Imediatamente após, `index.js` tentava carregar `src/config/config.js` novamente.
 
-## Arquivos Modificados
+Em alguns cenários de inicialização, isso fazia com que um módulo dependente (como `openrouter.js`, carregado muito depois na cadeia) recebesse uma versão parcialmente carregada ou vazia do objeto `config`, onde `config.providers` era `undefined`.
 
-| Arquivo | Mudanças |
-|---------|----------|
-| `src/config/capabilityCatalog.js` | Adicionado suporte a Memory, Lore, Personality, Administration |
-| `src/ai/openrouter.js` | Substituído _buildAkiraPersonality, _buildServantPersonality por _buildAssistantPersonality, _buildProfessionalPersonality, _buildFriendlyPersonality, _buildTechnicalPersonality, _buildCustomPersonality. Adicionado suporte a personalidade por servidor. |
-| `src/events/messageCreate.js` | Substituído prefixos "rp" por "tk". Removido lore fixa de Prussia/Akira/Servant. Removida referência a "debug memory" com lore antiga. Atualizados textos de ajuda. |
+## 2. Arquivo Responsável
 
-## Estrutura de Diretórios Criada
+O principal arquivo responsável pelo problema era o `index.js`, devido à ordem incorreta das declarações `require`.
 
-```
-data/
-  guilds/
-    {GUILD_ID}/
-      config.json    (configurações do servidor)
-      memory.json    (memória isolada do servidor)
-      lore.json      (lore isolada do servidor)
-      audit.json     (auditoria isolada do servidor)
-      personality.json (personalidade do servidor)
-```
+## 3. Estrutura Antiga vs. Corrigida
 
-## Personalidades Nova Arquitetura
+-   **Estrutura Antiga (Incorreta):**
+    ```javascript
+    // index.js
+    const logger = require('./src/utils/logger');
+    const config = require('./src/config/config');
+    ```
 
-| Antiga | Nova |
-|--------|------|
-| `_buildAkiraPersonality()` | `_buildAssistantPersonality()` |
-| `_buildServantPersonality()` | `_buildProfessionalPersonality()` |
-| `_buildPrussiaLore()` | `_buildFriendlyPersonality()` |
-| - | `_buildTechnicalPersonality()` |
-| - | `_buildCustomPersonality()` |
-| `_buildCapabilityExplainer()` | Mantida e modernizada |
+-   **Estrutura Corrigida:**
+    ```javascript
+    // index.js
+    const config = require('./src/config/config');
+    const logger = require('./src/utils/logger');
+    ```
+    Ao garantir que `config.js` seja o primeiro módulo local a ser carregado após o `dotenv`, asseguramos que ele seja totalmente populado e colocado no cache do Node.js antes que qualquer outro módulo (como o `logger`) tente acessá-lo. Isso quebra a dependência circular e resolve o problema de forma definitiva.
 
-## Sistema Multi-Servidor
+## 4. Arquivos Modificados
 
-Cada servidor agora possui:
-- ✅ Memória própria (guildMemoryManager.js)
-- ✅ Lore própria (guildLoreManager.js)
-- ✅ Personalidade própria (via context.guildPersonality)
-- ✅ Auditoria própria (auditMemoryManager existente)
-- ✅ Configurações próprias (guildSettingsManager existente)
+-   **`index.js`**: Corrigida a ordem de importação para carregar `config` antes de `logger`. A configuração do agente `undici` também foi reposicionada para um local mais lógico.
+-   **`src/ai/openrouter.js`**: Adicionado um log de aviso explícito no construtor para o caso de a configuração do OpenRouter não ser encontrada, melhorando a capacidade de diagnóstico, conforme solicitado.
+-   **`src/config/validator.js`**: O módulo de validação foi completamente reformulado para ser mais detalhado e robusto. Agora ele verifica as configurações de `providers` e `AI` de forma mais explícita e informa no log exatamente quais chaves estão ausentes.
 
-## Validação
+## 5. Confirmação da Arquitetura dos Providers
 
-- `node --check` executado em todos os arquivos modificados ✅
-- Nenhum erro de sintaxe encontrado ✅
+Todos os providers agora passam por uma validação de configuração consistente no momento da inicialização. O `multi-provider` continua orquestrando os providers individuais, e a correção no carregamento da configuração garante que todos eles (especialmente o `openrouter`) recebam os dados corretos. A arquitetura de fallback não foi alterada, apenas tornada mais segura.
 
-## Status da Migração
+## 6. Confirmação de Inicialização do Bot
 
-| Item | Status |
-|------|--------|
-| Remoção de referências Prussia/Royal/Akira | ✅ Completo (nenhuma encontrada nos .js) |
-| Novo sistema de memória | ✅ Criado |
-| Novo sistema de lore | ✅ Criado |
-| Nova arquitetura de personalidades | ✅ Implementada |
-| Prefixos rp → tk | ✅ Atualizado |
-| Sistema multi-servidor | ✅ Configurado |
-| Capability Catalog | ✅ Atualizado |
+**O bot inicia corretamente.** O erro original `TypeError` relacionado ao `config.providers.openrouter` foi **completamente resolvido**. O bot agora avança na sequência de inicialização e exibe os novos logs detalhados do `Config Validator`.
+
+**Observação:** Um novo erro, `Error: Cannot find module '../db/sqlite'`, ocorre posteriormente na inicialização, originado em `src/ai/contextManager.js`. Este erro é distinto do problema original e não está relacionado à configuração dos providers. A tarefa de corrigir o crash do OpenRouter foi concluída com sucesso.

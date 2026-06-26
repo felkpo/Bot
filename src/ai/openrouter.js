@@ -43,9 +43,19 @@ function fetchWithForceIPv4(url, options = {}) {
 
 class OpenRouterClient {
   constructor() {
-    this.url = config.providers.openrouter.url || 'https://openrouter.ai/api/v1/chat/completions';
-    this.apiKey = config.providers.openrouter.apiKey;
-    this.modelName = config.providers.openrouter.model;
+    // Leitura segura da configuração
+    const providers = config.providers;
+    const openrouterConfig = providers ? providers.openrouter : undefined;
+
+    if (!providers) {
+      logger.error('[CONFIG ERROR] `config.providers` não foi encontrado no objeto de configuração. OpenRouter será desativado.');
+    } else if (!openrouterConfig) {
+      logger.warn('[CONFIG WARN] `config.providers.openrouter` não encontrado. Usando valores padrão. OpenRouter pode não funcionar sem uma API key.');
+    }
+
+    this.url = openrouterConfig?.url || 'https://openrouter.ai/api/v1/chat/completions';
+    this.apiKey = openrouterConfig?.apiKey || process.env.OPENROUTER_API_KEY; // Fallback para env var direto
+    this.modelName = openrouterConfig?.model || process.env.OPENROUTER_MODEL;
     this.isAvailable = false;
     this.modelInfo = null;
     this.initialized = this.initialize();
@@ -53,7 +63,7 @@ class OpenRouterClient {
   }
 
   async initialize() {
-    if (!this.apiKey) { this.isOnline = false; return; }
+    if (!this.apiKey) { this.isAvailable = false; return; }
     this.isAvailable = true;
     this.modelInfo = { name: this.modelName, provider: 'openrouter' };
   }

@@ -1,5 +1,6 @@
 const fetch = global.fetch || require('node-fetch');
 const logger = require('../utils/logger');
+const config = require('../config/config');
 
 const WORKERS_MODEL_POOL = [
   '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
@@ -16,8 +17,9 @@ const WORKERS_MODEL_POOL = [
 
 class WorkersProvider {
   constructor() {
-    this.apiKey = process.env.CF_WORKERS_AI_API_KEY || '';
-    this.accountId = process.env.CF_WORKERS_AI_ACCOUNT_ID || '';
+    const workersConfig = config.providers?.workersai;
+    this.apiKey = workersConfig?.apiKey || '';
+    this.accountId = workersConfig?.accountId || '';
     this.isAvailable = false;
     this.activePool = [...WORKERS_MODEL_POOL];
   }

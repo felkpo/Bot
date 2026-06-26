@@ -1,5 +1,6 @@
 const fetch = global.fetch || require('node-fetch');
 const logger = require('../utils/logger');
+const config = require('../config/config');
 
 const GROQ_MODEL_POOL = [
   'llama-3.3-70b-versatile',
@@ -16,7 +17,8 @@ const GROQ_MODEL_POOL = [
 
 class GroqProvider {
   constructor() {
-    this.apiKey = process.env.GROQ_API_KEY || '';
+    const groqConfig = config.providers?.groq;
+    this.apiKey = groqConfig?.apiKey || '';
     this.isAvailable = false;
     this.activePool = [...GROQ_MODEL_POOL];
   }
