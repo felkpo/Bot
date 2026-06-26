@@ -11,7 +11,7 @@ const userGroupManager = require('../managers/userGroupManager');
 const testerUsageManager = require('../managers/testerUsageManager');
 const guildSettingsManager = require('../managers/guildSettingsManager');
 const auditMemoryManager = require('../managers/auditMemoryManager');
-const { getCatalogMarkdown, getCatalogText, KNOWN_SERVER_COMMANDS } = require('../config/commandCatalog');
+const { generateHelpEmbed } = require('../utils/helpGenerator');
 const { resolveTarget } = require('../utils/helpers');
 const fs = require('fs');
 const path = require('path');
@@ -812,25 +812,8 @@ module.exports = {
 
       // rp help — mostra catálogo de comandos
       if (cmd === 'help') {
-        const helpText = getCatalogMarkdown();
-        logger.info('[HELP GENERATED]', { commandCount: Object.keys(KNOWN_SERVER_COMMANDS).length, arquivo: 'src/events/messageCreate.js' });
-        await message.reply(helpText).catch(() => {});
-        return;
-      }
-
-      if (cmd === 'debug' && cmdParts[1] === 'commands') {
-        const cmdCount = Object.keys(KNOWN_SERVER_COMMANDS).length;
-        const cmdList = getCatalogText();
-        await message.reply(
-          `**CATÁLOGO DE COMANDOS** (${cmdCount} comandos)\n` +
-          `**Origem:** src/config/commandCatalog.js\n\n` +
-          `\`\`\`\n${cmdList}\n\`\`\``
-        ).catch(() => {});
-        logger.info('[DEBUG COMMANDS REQUEST]', {
-          userId: message.author.id,
-          totalCommands: cmdCount,
-          arquivo: 'src/events/messageCreate.js'
-        });
+        const helpEmbed = generateHelpEmbed();
+        await message.reply({ embeds: [helpEmbed] }).catch(() => {});
         return;
       }
 
