@@ -942,7 +942,6 @@ module.exports = {
       }
 
       // Remove o prefixo
-      const userMessage = stripPrefix(content);
 
       logger.info('💬 Mensagem de IA recebida', {
         user: message.author.tag,
