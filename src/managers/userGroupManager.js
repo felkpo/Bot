@@ -5,10 +5,10 @@
  * Substitui completamente Sets hardcoded por gerenciamento dinâmico via arquivo.
  * 
  * Para adicionar/remover usuários, use os comandos do Discord:
- *   tk admin add @usuario
- *   tk admin remove @usuario
- *   tk tester add @usuario
+ *   rp add <grupo> @usuario
+ *   rp remove <grupo> @usuario
  * 
+ * Grupos: akira, servant, normal, tester, admintester
  * @file src/managers/userGroupManager.js
  */
 
@@ -20,9 +20,11 @@ const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'user-groups.json');
 
 // Estrutura padrão caso o arquivo não exista
 const DEFAULT_GROUPS = {
+  akiraUsers: [],
+  servantUsers: [],
   assistantNormalUsers: [],
   testers: [],
-  adminTesters: []
+  adminTesters: [],
 };
 
 // Cache em memória
@@ -32,13 +34,15 @@ let groups = null;
  * Mapeamento de nomes de grupos (alias) para chaves internas
  */
 const GROUP_ALIASES = {
+  akira: 'akiraUsers',
+  servant: 'servantUsers',
   normal: 'assistantNormalUsers',
   assistant: 'assistantNormalUsers',
   tester: 'testers',
   test: 'testers',
   admintester: 'adminTesters',
   admintest: 'adminTesters',
-  admin_tester: 'adminTesters'
+  admin_tester: 'adminTesters',
 };
 
 /**
@@ -52,9 +56,11 @@ function loadUserGroups() {
       const parsed = JSON.parse(raw);
       // Garante que todas as chaves existam
       groups = {
+        akiraUsers: parsed.akiraUsers || [],
+        servantUsers: parsed.servantUsers || [],
         assistantNormalUsers: parsed.assistantNormalUsers || [],
         testers: parsed.testers || [],
-        adminTesters: parsed.adminTesters || []
+        adminTesters: parsed.adminTesters || [],
       };
     } else {
       // Cria arquivo com estrutura padrão
@@ -63,6 +69,8 @@ function loadUserGroups() {
     }
 
     logger.info('[USER GROUP LOAD] Grupos carregados', {
+      akiraUsers: groups.akiraUsers.length,
+      servantUsers: groups.servantUsers.length,
       assistantNormalUsers: groups.assistantNormalUsers.length,
       testers: groups.testers.length,
       adminTesters: groups.adminTesters.length,
@@ -118,7 +126,7 @@ function addUser(groupName, userId) {
 
   const key = resolveGroupKey(groupName);
   if (!key) {
-    return { success: false, message: `Grupo inválido. Grupos disponíveis: normal, tester, admintester` };
+    return { success: false, message: `Grupo inválido. Grupos disponíveis: akira, servant, normal, tester, admintester` };
   }
 
   if (!userId || typeof userId !== 'string' || !userId.trim()) {
@@ -154,7 +162,7 @@ function removeUser(groupName, userId) {
 
   const key = resolveGroupKey(groupName);
   if (!key) {
-    return { success: false, message: `Grupo inválido. Grupos disponíveis: normal, tester, admintester` };
+    return { success: false, message: `Grupo inválido. Grupos disponíveis: akira, servant, normal, tester, admintester` };
   }
 
   if (!userId || typeof userId !== 'string' || !userId.trim()) {
@@ -195,7 +203,7 @@ function hasUser(groupName, userId) {
 
 /**
  * Retorna o role de um usuário baseado nos grupos.
- * Hierarquia: assistant_normal > admin_tester > tester > default
+ * Hierarquia: akira > servant > assistant_normal > admin_tester > tester > default
  * @param {string} userId - ID do usuário do Discord
  * @returns {string}
  */
@@ -205,6 +213,8 @@ function getUserRole(userId) {
 
   const id = userId.trim();
 
+  if (groups.akiraUsers.includes(id)) return 'akira';
+  if (groups.servantUsers.includes(id)) return 'servant';
   if (groups.assistantNormalUsers.includes(id)) return 'assistant_normal';
   if (groups.adminTesters.includes(id)) return 'admin_tester';
   if (groups.testers.includes(id)) return 'tester';
@@ -231,9 +241,11 @@ function getGroup(groupName) {
 function getAllGroups() {
   if (!groups) loadUserGroups();
   return {
+    akiraUsers: [...groups.akiraUsers],
+    servantUsers: [...groups.servantUsers],
     assistantNormalUsers: [...groups.assistantNormalUsers],
     testers: [...groups.testers],
-    adminTesters: [...groups.adminTesters]
+    adminTesters: [...groups.adminTesters],
   };
 }
 

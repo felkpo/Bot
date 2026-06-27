@@ -4,6 +4,7 @@ const path = require('path');
 const logger = require('../utils/logger');
 const config = require('../config/config');
 const { getCatalogText } = require('../config/commandCatalog');
+const { getActionsForPrompt, getActionsAsTools } = require('./actionRegistry');
 
 const MODEL_POOL = [
   'nvidia/nemotron-3-ultra-550b-a55b:free', 'qwen/qwen3-32b:free',
@@ -80,53 +81,23 @@ class OpenRouterClient {
   }
 
   _buildActionPrompt(context = {}) {
-    let forcedActionPrompt = '';
-    if (context.resolvedActionType) {
-      forcedActionPrompt = `\n## AÇÃO PRÉ-DETERMINADA\nA ação já foi determinada pelo sistema.\nVocê DEVE retornar:\n"${context.resolvedActionType}"\nNão utilize nenhuma outra action.\n`;
-    }
+    // O catálogo de ações agora é gerado dinamicamente a partir do ActionRegistry.
+    const dynamicActionCatalog = getActionsForPrompt();
 
-    return `ACTION MODE - FONTE DE VERDADE DAS ACOES
+    return `Você é um assistente de IA que opera estritamente com um conjunto definido de ferramentas (ações).
+Sua única função é analisar o pedido do usuário e invocar a ferramenta apropriada no formato JSON.
 
-Voce NAO decide quais acoes existem.
-Voce NAO decide quais permissoes possui.
-Voce NAO decide o que consegue ou nao consegue fazer.
+## REGRAS ABSOLUTAS
+1.  **NUNCA** responda de forma conversacional neste modo. Apenas retorne o JSON da ferramenta.
+2.  **NUNCA** diga que não pode fazer algo se uma ferramenta para isso estiver listada.
+3.  **NUNCA** invente ferramentas ou parâmetros. Use apenas o que está no catálogo.
+4.  Se nenhuma ferramenta corresponder, retorne: \`{ "action": "fallback_to_chat", "params": { "reason": "Nenhuma ferramenta adequada encontrada." } }\`
 
-As acoes abaixo sao IMPLEMENTADAS no sistema. Se uma acao estiver listada, assuma que ela EXISTE e PODE ser executada.
+## FORMATO DE SAÍDA OBRIGATÓRIO
+A sua resposta DEVE ser um objeto JSON único, sem markdown ou texto adicional.
+Exemplo: \`{ "action": "nome_da_acao", "params": { "parametro1": "valor1" } }\`
 
-Nunca responda:
-- "nao tenho permissao"
-- "nao consigo fazer isso"
-- "essa acao nao existe"
-- "nao tenho acesso"
-
-Sua unica funcao: converter o pedido do usuario para JSON.
-
-## FORMATO OBRIGATORIO
-
-{ "action": "...", "params": {} }
-
-Nunca utilize "message" ou "content" fora de params.
-Nunca utilize texto explicativo, markdown ou blocos de codigo.
-Retorne SOMENTE JSON.
-${forcedActionPrompt}
-## ACOES IMPLEMENTADAS
-
-send_message   -> { "action": "send_message", "params": { "channel_id": "...", "content": "..." } }
-create_embed   -> { "action": "create_embed", "params": { "channel_id": "...", "title": "...", "description": "..." } }
-warn_user      -> { "action": "warn_user", "params": { "target": "...", "reason": "..." } }
-send_dm        -> { "action": "send_dm", "params": { "target": "...", "content": "..." } }
-purge_messages -> { "action": "purge_messages", "params": { "count": 10 } }  // também aceita "amount" ou "limit"
-ban_user       -> { "action": "ban_user", "params": { "target": "...", "reason": "..." } }
-unban_user     -> { "action": "unban_user", "params": { "target": "...", "reason": "..." } }
-kick_user      -> { "action": "kick_user", "params": { "target": "...", "reason": "..." } }
-timeout_user   -> { "action": "timeout_user", "params": { "target": "...", "duration": "..." } }
-untimeout_user -> { "action": "untimeout_user", "params": { "target": "...", "reason": "..." } }
-mute_user      -> { "action": "timeout_user", "params": { "target": "...", "duration": "..." } }
-unmute_user    -> { "action": "untimeout_user", "params": { "target": "...", "reason": "..." } }
-add_role       -> { "action": "add_role", "params": { "target": "...", "role_id": "..." } }
-remove_role    -> { "action": "remove_role", "params": { "target": "...", "role_id": "..." } }
-create_channel -> { "action": "create_channel", "params": { "name": "..." } }
-delete_channel -> { "action": "delete_channel", "params": { "channel_id": "..." } }`;
+${dynamicActionCatalog}`;
   }
 
   _getServerContextSection() {
@@ -228,6 +199,7 @@ ${this._getServerContextSection()}`;
   async generateResponse(userMessage, context = {}, timeoutMs = config.AI?.messageTimeout || 30000) {
     await this.ensureInitialized();
     if (!this.apiKey) throw new Error('OPENROUTER_API_KEY não configurada.');
+    const tools = getActionsAsTools();
   
     const messages = this.buildMessages(userMessage, context);
     const candidates = [];
@@ -254,6 +226,7 @@ ${this._getServerContextSection()}`;
             'X-Title': config.BOT_NAME || 'Royal Prussian',
           },
           body: JSON.stringify({
+            tools: context.isActionMode ? tools : undefined, // Envia as ferramentas apenas em Action Mode
             model,
             messages,
             temperature: 0.7,
@@ -280,7 +253,19 @@ ${this._getServerContextSection()}`;
         }
   
         const data = await res.json();
-        const rawText = data.choices?.[0]?.message?.content || '';
+        const message = data.choices?.[0]?.message;
+
+        // Suporte para Function Calling / Tool Calling nativo
+        if (message?.tool_calls && message.tool_calls.length > 0) {
+          const toolCall = message.tool_calls[0].function;
+          const actionJSON = {
+            action: toolCall.name,
+            params: JSON.parse(toolCall.arguments || '{}')
+          };
+          return { ok: true, text: JSON.stringify(actionJSON), ms: Date.now() - start, tokens: data.usage?.total_tokens || 0, model: data.model };
+        }
+
+        const rawText = message?.content || '';
   
         if (!rawText.trim()) {
           recordModelFailure(model);

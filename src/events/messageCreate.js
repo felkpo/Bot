@@ -3,9 +3,12 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const aiProvider = require('../ai/provider');
 const contextManager = require('../ai/contextManager');
-const { shouldActivateAI, stripPrefix } = require('../utils/regex');
-const { getToolCatalogForPrompt } = require('../ai/toolCatalog');
-const { tryParseStructuredResponse, executeToolAction } = require('../ai/toolManager');
+const { shouldActivateAI, stripPrefix, UNIVERSAL_ACTION_VERBS_REGEX } = require('../utils/regex');
+const { getActionsForPrompt } = require('../ai/actionRegistry');
+const { resolveAction } = require('../ai/actionResolver');
+const { validateAction } = require('../ai/actionValidator');
+const actionExecutor = require('../ai/actionExecutor');
+const { tryParseStructuredResponse } = require('../ai/toolManager'); // Apenas para parsing
 const config = require('../config/config');
 const userGroupManager = require('../managers/userGroupManager');
 const testerUsageManager = require('../managers/testerUsageManager');
@@ -15,12 +18,6 @@ const { generateHelpEmbed } = require('../utils/helpGenerator');
 const { resolveTarget } = require('../utils/helpers');
 const fs = require('fs');
 const path = require('path');
-
-// Universal regex to detect an intent to perform an action.
-const UNIVERSAL_ACTION_VERBS_REGEX = new RegExp(
-  '\\b(manda|mande|envia|envie|posta|poste|publica|publique|cria|crie|remove|remova|apaga|apague|deleta|delete|bane|banir|desbane|desbanir|timeout|mute|unmute|warn|advertir|kick|expulsa|expulsar|adiciona|adicione|tira|tirar|d[aá]|coloca|coloque|move|mover|renomeia|renomeie|fecha|feche|abre|abra|tranca|destranca|faz|faça|gera|gere|configura|configure|ativa|desativa|liga|desliga|exporta|exporte|importa|importa|consulta|consulte|mostra|mostre|lista|liste|pesquisa|pesquise|procura|procure|verifica|verifique|quem|qual|audita|auditar)\\b',
-  'i'
-);
 
 // Timeout de diagnóstico por etapa (5 segundos)
 const DIAGNOSTIC_TIMEOUT = 5000;
@@ -1190,7 +1187,7 @@ module.exports = {
         });
         context.isActionMode = true;
         // Inject the tool catalog directly into the context for the provider to use.
-        context.toolCatalog = getToolCatalogForPrompt();
+        context.toolCatalog = getActionsForPrompt();
       }
 
         // Log de personalidade selecionada
@@ -1230,7 +1227,7 @@ module.exports = {
         logger.debug('[DEBUG] PASSO 6 - Processando resposta...');
         const step6Start = Date.now();
         
-        const parsedAction = tryParseStructuredResponse(response);
+        const parsedAction = tryParseStructuredResponse(response.text || response);
         
         // Handle fallback from Action Mode to conversational mode
         if (parsedAction && parsedAction.action === 'fallback_to_chat') {
@@ -1248,7 +1245,7 @@ module.exports = {
           // Send the new conversational response and save context, then exit.
           await contextManager.addMessage(message.author.id, guildId, 'user', userMessage, message.channelId, message.channel.name, message.author.tag);
           await contextManager.addMessage(message.author.id, guildId, 'assistant', conversationalResponse, message.channelId, message.channel.name, config.BOT_NAME);
-          await sendDiscordMessage(message, conversationalResponse, 'resposta de fallback', requestId);
+          await sendDiscordMessage(message, conversationalResponse.text || conversationalResponse, 'resposta de fallback', requestId);
 
           if (role === 'tester' && !isAdminUser) {
             testerUsageManager.addUsage(message.author.id, 1);
@@ -1300,102 +1297,73 @@ module.exports = {
           // PASSO 7 - Execução de ação
           logger.debug('[DEBUG] PASSO 7 - Executando ação...');
           const step7Start = Date.now();
-          const step7Timeout = createDiagnosticTimeout('execução de ação', step7Start);
           
-          const actionResult = await executeToolAction(parsedAction, message);
+          // ══════════════════════════════════════════════════════════════════
+          // NOVO PIPELINE DE EXECUÇÃO DE ACTION (V3)
+          // ══════════════════════════════════════════════════════════════════
+          let actionResult = { success: false, error: 'Ação não pôde ser processada.' };
+          try {
+            // 1. RESOLVER: Encontra a definição da action no registry
+            const actionDefinition = resolveAction(parsedAction.action);
+            if (!actionDefinition) {
+              throw new Error(`Ação '${parsedAction.action}' não encontrada no registro.`);
+            }
+            logger.info('[ACTION RESOLVER]', { action: actionDefinition.name });
+
+            // 2. VALIDAR: Verifica permissões e condições
+            const validation = validateAction(actionDefinition, message);
+            if (!validation.isValid) {
+              throw new Error(validation.reason);
+            }
+            logger.info('[ACTION VALIDATOR]', { action: actionDefinition.name, result: 'Válido' });
+
+            // 3. EXECUTAR: Chama a função correspondente no executor
+            const executorFunction = actionExecutor[actionDefinition.executorName];
+            if (typeof executorFunction !== 'function') {
+              throw new Error(`Executor '${actionDefinition.executorName}' não encontrado ou não é uma função.`);
+            }
+            logger.info('[ACTION EXECUTOR]', { executor: actionDefinition.executorName });
+
+            const executionResponse = await executorFunction(parsedAction.params, message);
+            actionResult = { success: true, summary: executionResponse };
+            logger.info('[ACTION SUCCESS]', { action: actionDefinition.name, response: executionResponse });
+
+          } catch (error) {
+            logger.error('[ACTION FAILED]', {
+              action: parsedAction.action,
+              error: error.message,
+              stack: error.stack.substring(0, 300)
+            });
+            actionResult = { success: false, error: error.message };
+          }
           
-          clearTimeout(step7Timeout);
           const step7Time = Date.now() - step7Start;
-          
           logger.debug('[DEBUG] PASSO 7 CONCLUÍDO - Ação executada', {
             tempoMs: step7Time,
             success: actionResult.success
           });
-          
+
+          // Salva contexto e responde ao usuário
+          const contextMessage = actionResult.success
+            ? `Ação ${parsedAction.action} executada com sucesso.`
+            : `Falha ao executar ${parsedAction.action}: ${actionResult.error}`;
+
+          await contextManager.addMessage(message.author.id, message.guildId, 'user', userMessage, message.channelId, message.channel.name, message.author.tag);
+          await contextManager.addMessage(message.author.id, message.guildId, 'assistant', contextMessage, message.channelId, message.channel.name, config.BOT_NAME);
+
           if (actionResult.success) {
-            logger.debug('[DEBUG] [DISCORD API] Antes de contextManager.addMessage() - usuário');
-            const addMsgStart1 = Date.now();
-            try {
-              await contextManager.addMessage(
-                message.author.id,
-                message.guildId,
-                'user',
-                userMessage,
-                message.channelId,
-                message.channel.name,
-                message.author.tag
-              );
-              logger.debug('[DEBUG] [DISCORD API] Depois de contextManager.addMessage() - usuário OK', { tempoMs: Date.now() - addMsgStart1 });
-            } catch (error) {
-              logger.error('[DEBUG] [DISCORD API] ERRO em addMessage() - usuário', {
-                error: error.message,
-                tempoMs: Date.now() - addMsgStart1,
-                stack: error.stack
-              });
-              throw error;
-            }
-
-            logger.debug('[DEBUG] [DISCORD API] Antes de contextManager.addMessage() - assistente');
-            const addMsgStart2 = Date.now();
-            try {
-              await contextManager.addMessage(
-                message.author.id,
-                message.guildId,
-                'assistant',
-                actionResult.contextMessage || `Ação ${parsedAction.action} executada com sucesso.`,
-                message.channelId,
-                message.channel.name,
-                config.BOT_NAME
-              );
-              logger.debug('[DEBUG] [DISCORD API] Depois de contextManager.addMessage() - assistente OK', { tempoMs: Date.now() - addMsgStart2 });
-            } catch (error) {
-              logger.error('[DEBUG] [DISCORD API] ERRO em addMessage() - assistente', {
-                error: error.message,
-                tempoMs: Date.now() - addMsgStart2,
-                stack: error.stack
-              });
-              throw error;
-            }
-
-            // [TESTE DE ISOLAMENTO] Usando sendDiscordMessage() para teste reply vs channel.send
             await sendDiscordMessage(message, {
-              content: actionResult.summary,
+              content: `✅ ${actionResult.summary}`,
               allowedMentions: { repliedUser: false }
             }, 'ação bem-sucedida', requestId);
-            
-            if (role === 'tester' && !isAdminUser) {
-              testerUsageManager.addUsage(message.author.id, 1);
-            }
-            return;
+          } else {
+            const errorContent = `❌ ${actionResult.error}`;
+            await sendDiscordMessage(message, errorContent, 'erro de ação', requestId);
           }
 
-          logger.debug('[DEBUG] [DISCORD API] Antes de contextManager.addMessage() - erro de ação');
-          const addMsgStart3 = Date.now();
-          try {
-            await contextManager.addMessage(
-              message.author.id,
-              message.guildId,
-              'user',
-              userMessage,
-              message.channelId,
-              message.channel.name,
-              message.author.tag
-            );
-            logger.debug('[DEBUG] [DISCORD API] Depois de contextManager.addMessage() - erro de ação OK', { tempoMs: Date.now() - addMsgStart3 });
-          } catch (error) {
-            logger.error('[DEBUG] [DISCORD API] ERRO em addMessage() - erro de ação', {
-              error: error.message,
-              tempoMs: Date.now() - addMsgStart3,
-              stack: error.stack
-            });
-            throw error;
+          if (role === 'tester' && !isAdminUser) {
+            testerUsageManager.addUsage(message.author.id, 1);
           }
-
-          // [TESTE DE ISOLAMENTO] Usando sendDiscordMessage() para teste reply vs channel.send
-          const errorContent = actionResult.error
-            ? `❌ ${actionResult.error}`
-            : actionResult.summary || '❌ Ação não executada.';
-          await sendDiscordMessage(message, errorContent, 'erro de ação', requestId);
           return;
         }
 
@@ -1432,7 +1400,7 @@ module.exports = {
             message.author.id,
             message.guildId,
             'assistant',
-            response,
+            response.text || response,
             message.channelId,
             message.channel.name,
             config.BOT_NAME
@@ -1454,8 +1422,9 @@ module.exports = {
         logger.debug('[DEBUG] PASSO 9 - Enviando resposta para Discord...');
         const step9Start = Date.now();
         
-        if (response.length > 2000) {
-          const chunks = response.match(/[\s\S]{1,1990}/g) || [];
+        const responseText = response.text || response;
+        if (responseText.length > 2000) {
+          const chunks = responseText.match(/[\s\S]{1,1990}/g) || [];
           logger.debug('[DEBUG] Resposta longa, enviando em', chunks.length, 'chunks');
           for (let i = 0; i < chunks.length; i++) {
             // [TESTE DE ISOLAMENTO] Usando sendDiscordMessage() para teste reply vs channel.send
@@ -1463,7 +1432,7 @@ module.exports = {
           }
         } else {
           // [TESTE DE ISOLAMENTO] Usando sendDiscordMessage() para teste reply vs channel.send
-          await sendDiscordMessage(message, response, 'resposta única', requestId);
+          await sendDiscordMessage(message, responseText, 'resposta única', requestId);
         }
         
         const step9Time = Date.now() - step9Start;
