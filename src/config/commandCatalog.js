@@ -10,7 +10,7 @@
 
 const COMMANDS = [
   // Administração
-  { name: 'add', category: 'Administração', syntax: 'rp add <grupo> <usuário>', description: 'Adiciona um usuário a um grupo de personalidade (akira, servant, tester, admintester).', type: 'text', permissions: ['Administrator'] },
+  { name: 'add', category: 'Administração', syntax: 'rp add <grupo> <usuário>', description: 'Adiciona um usuário a um grupo de personalidade.', type: 'text', permissions: ['Administrator'] },
   { name: 'remove', category: 'Administração', syntax: 'rp remove <grupo> <usuário>', description: 'Remove um usuário de um grupo de personalidade.', type: 'text', permissions: ['Administrator'] },
   { name: 'role', category: 'Administração', syntax: 'rp role <usuário>', description: 'Mostra o grupo de personalidade de um usuário.', type: 'text', permissions: ['Administrator'] },
   { name: 'list', category: 'Administração', syntax: 'rp list <grupo>', description: 'Lista todos os membros de um grupo.', type: 'text', permissions: ['Administrator'] },

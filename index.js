@@ -50,7 +50,16 @@ console.log('[STARTUP 1] Carregando variáveis de ambiente...');
 require('dotenv').config();
 console.log('[STARTUP 1] Variáveis de ambiente carregadas');
 
-// [STARTUP 1.5] Configurar Undici Agent global com connectTimeout maior
+// [STARTUP 2] Carregamento da config
+console.log('[STARTUP 2] Carregando configuração...');
+const { Client, GatewayIntentBits, Events } = require('discord.js');
+const { readdirSync } = require('fs');
+const { join } = require('path');
+const logger = require('./src/utils/logger');
+const config = require('./src/config/config');
+console.log('[STARTUP 2] Configuração carregada');
+
+// [STARTUP 2.2] Configurar Undici Agent global com connectTimeout maior
 // O padrão do undici é 10000ms (10s), o que causa UND_ERR_CONNECT_TIMEOUT
 // intermitente em redes com firewall ou latência variável.
 // Aumentando para 30000ms (30s) para reduzir essas falhas.
@@ -64,17 +73,7 @@ setGlobalDispatcher(new Agent({
     timeout: 30000
   }
 }));
-console.log('[STARTUP 1.5] Undici Agent configurado');
-console.log('[STARTUP 1.5] connectTimeout=30000ms (antigo: 10000ms)');
-
-// [STARTUP 2] Carregamento da config
-console.log('[STARTUP 2] Carregando configuração...');
-const { Client, GatewayIntentBits, Events } = require('discord.js');
-const { readdirSync } = require('fs');
-const { join } = require('path');
-const logger = require('./src/utils/logger');
-const config = require('./src/config/config');
-console.log('[STARTUP 2] Configuração carregada');
+console.log('[STARTUP 2.2] Undici Agent configurado com connectTimeout=30000ms');
 
 // [STARTUP 2.5] Validação da configuração
 console.log('[STARTUP 2.5] Validando configuração...');

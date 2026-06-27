@@ -417,8 +417,8 @@ class MultiProviderClient {
 
           if (!isBadResponse) {
             // Validate JSON parsing
-            const toolManager = require('./toolManager');
-            const parsed = toolManager.tryParseStructuredResponse(cleaned);
+            const responseParser = require('./responseParser');
+            const parsed = responseParser.tryParseStructuredResponse(cleaned);
             if (!parsed) {
               isBadResponse = true;
               validationReason = 'invalidJson';

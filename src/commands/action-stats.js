@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const toolManager = require('../ai/toolManager');
+const actionStatsManager = require('../managers/actionStatsManager');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -11,7 +11,7 @@ module.exports = {
     try {
       await interaction.deferReply({ ephemeral: false });
 
-      const metrics = toolManager.getActionMetrics();
+      const metrics = actionStatsManager.getActionMetrics();
       const { executions, failures, missingParameters, lastReset, lastUpdate } = metrics;
 
       // Calcula totais

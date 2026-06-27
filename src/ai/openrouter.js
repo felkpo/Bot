@@ -192,10 +192,6 @@ ${this._getServerContextSection()}`;
         return this._buildTesterPersonality();
       default:
         if (role !== 'default') {
-          logger.warn('[TENKAI LEGACY REMOVED]', {
-            message: 'Fallback de personalidade acionado para um grupo não padrão, possivelmente um resquício de "assistant_normal".',
-            group: role
-          });
           logger.warn('[GROUP FALLBACK]', { userId: context.userId, reason: `Grupo '${role}' não mapeado para uma personalidade. Usando 'Default'.` });
         }
         logger.info('[PERSONALITY RESOLUTION]', { group: role, personality: 'Default (Royal Prussian)', userId: context.userId });

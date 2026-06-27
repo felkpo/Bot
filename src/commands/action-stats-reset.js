@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, PermissionFlagsBits } = require('discord.js');
-const toolManager = require('../ai/toolManager');
+const actionStatsManager = require('../managers/actionStatsManager');
 const logger = require('../utils/logger');
 
 const CONFIRMATION_TIMEOUT_MS = 30000;
@@ -21,7 +21,7 @@ module.exports = {
       }
 
       // Pega estatísticas ANTES do reset para mostrar o que será apagado
-      const beforeMetrics = toolManager.getActionMetrics();
+      const beforeMetrics = actionStatsManager.getActionMetrics();
       let totalBefore = 0;
       for (const v of Object.values(beforeMetrics.executions)) totalBefore += v;
       for (const v of Object.values(beforeMetrics.failures)) totalBefore += v;
@@ -118,10 +118,10 @@ module.exports = {
       }
 
       // CONFIRMOU — executa o reset
-      toolManager.resetMissingParameterStats();
+      actionStatsManager.resetActionStats();
       await confirmation.update({});
 
-      const afterMetrics = toolManager.getActionMetrics();
+      const afterMetrics = actionStatsManager.getActionMetrics();
       const successEmbed = new EmbedBuilder()
         .setColor('#2ecc71')
         .setTitle('✅ Estatísticas resetadas')
