@@ -3,9 +3,9 @@
  * 
  * Centraliza toda a lógica de determinação de papéis/personalidades por usuário.
  * Agora usa userGroupManager (data/user-groups.json) como fonte única de dados.
- * 
+ *
  * Hierarquia (do maior para menor prioridade):
- * 1. Assistant Normal
+ * 1. Akira / Servant
  * 2. Admin Tester
  * 3. Tester
  * 4. Default
@@ -20,7 +20,7 @@ const logger = require('./logger');
  * Retorna o role de um usuário baseado nos grupos configurados.
  * Delega ao userGroupManager que lê de data/user-groups.json.
  * @param {string} userId - ID do usuário do Discord
- * @returns {string} - 'assistant_normal' | 'admin_tester' | 'tester' | 'default'
+ * @returns {string} - 'akira' | 'servant' | 'admintester' | 'tester' | 'default'
  */
 function getUserRole(userId) {
   const role = userGroupManager.getUserRole(userId);
@@ -33,12 +33,21 @@ function getUserRole(userId) {
 }
 
 /**
- * Verifica se o usuário é Assistant Normal
+ * Verifica se o usuário é Akira
  * @param {string} userId
  * @returns {boolean}
  */
-function isAssistantNormalUser(userId) {
-  return userGroupManager.hasUser('normal', userId);
+function isAkiraUser(userId) {
+  return userGroupManager.hasUser('akira', userId);
+}
+
+/**
+ * Verifica se o usuário é Servant
+ * @param {string} userId
+ * @returns {boolean}
+ */
+function isServantUser(userId) {
+  return userGroupManager.hasUser('servant', userId);
 }
 
 /**
@@ -61,7 +70,8 @@ function isAdminTester(userId) {
 
 module.exports = {
   getUserRole,
-  isAssistantNormalUser,
+  isAkiraUser,
+  isServantUser,
   isTester,
   isAdminTester
 };

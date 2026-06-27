@@ -81,6 +81,12 @@ console.log('[STARTUP 2.5] Validando configuração...');
 const { runValidation } = require('./src/config/validator');
 runValidation();
 
+// [STARTUP 2.6] Descoberta automática de Actions
+console.log('[STARTUP 2.6] Descobrindo actions...');
+const { discoverAndRegisterActions } = require('./src/ai/actionDiscovery');
+discoverAndRegisterActions();
+console.log('[STARTUP 2.6] Actions descobertas');
+
 // Valida configuração
 if (!config.DISCORD_TOKEN) {
   logger.error('❌ DISCORD_TOKEN não configurada no arquivo .env');

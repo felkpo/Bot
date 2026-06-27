@@ -22,7 +22,6 @@ const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'user-groups.json');
 const DEFAULT_GROUPS = {
   akiraUsers: [],
   servantUsers: [],
-  assistantNormalUsers: [],
   testers: [],
   adminTesters: [],
 };
@@ -36,8 +35,6 @@ let groups = null;
 const GROUP_ALIASES = {
   akira: 'akiraUsers',
   servant: 'servantUsers',
-  normal: 'assistantNormalUsers',
-  assistant: 'assistantNormalUsers',
   tester: 'testers',
   test: 'testers',
   admintester: 'adminTesters',
@@ -54,11 +51,18 @@ function loadUserGroups() {
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf8');
       const parsed = JSON.parse(raw);
+      // [TENKAI LEGACY FOUND]
+      if (parsed.assistantNormalUsers) {
+        logger.warn('[TENKAI LEGACY FOUND]', {
+            file: DATA_FILE,
+            key: 'assistantNormalUsers',
+            message: 'Grupo legado "assistantNormalUsers" encontrado. Será removido na próxima vez que o arquivo for salvo.'
+        });
+      }
       // Garante que todas as chaves existam
       groups = {
         akiraUsers: parsed.akiraUsers || [],
         servantUsers: parsed.servantUsers || [],
-        assistantNormalUsers: parsed.assistantNormalUsers || [],
         testers: parsed.testers || [],
         adminTesters: parsed.adminTesters || [],
       };
@@ -71,7 +75,6 @@ function loadUserGroups() {
     logger.info('[USER GROUP LOAD] Grupos carregados', {
       akiraUsers: groups.akiraUsers.length,
       servantUsers: groups.servantUsers.length,
-      assistantNormalUsers: groups.assistantNormalUsers.length,
       testers: groups.testers.length,
       adminTesters: groups.adminTesters.length,
       arquivo: DATA_FILE
@@ -97,6 +100,10 @@ function saveUserGroups(silent = false) {
     }
     fs.writeFileSync(DATA_FILE, JSON.stringify(groups, null, 2), 'utf8');
     if (!silent) {
+      logger.info('[GROUP MIGRATION]', {
+        file: DATA_FILE,
+        message: 'Arquivo de grupos salvo com a estrutura correta da Royal Prussian. O grupo "assistantNormalUsers" foi removido se existia.'
+      });
       logger.info('[USER GROUP SAVE] Grupos salvos', { arquivo: DATA_FILE });
     }
   } catch (error) {
@@ -126,7 +133,7 @@ function addUser(groupName, userId) {
 
   const key = resolveGroupKey(groupName);
   if (!key) {
-    return { success: false, message: `Grupo inválido. Grupos disponíveis: akira, servant, normal, tester, admintester` };
+    return { success: false, message: `Grupo inválido. Grupos disponíveis: ${Object.keys(GROUP_ALIASES).join(', ')}` };
   }
 
   if (!userId || typeof userId !== 'string' || !userId.trim()) {
@@ -162,7 +169,7 @@ function removeUser(groupName, userId) {
 
   const key = resolveGroupKey(groupName);
   if (!key) {
-    return { success: false, message: `Grupo inválido. Grupos disponíveis: akira, servant, normal, tester, admintester` };
+    return { success: false, message: `Grupo inválido. Grupos disponíveis: ${Object.keys(GROUP_ALIASES).join(', ')}` };
   }
 
   if (!userId || typeof userId !== 'string' || !userId.trim()) {
@@ -203,23 +210,32 @@ function hasUser(groupName, userId) {
 
 /**
  * Retorna o role de um usuário baseado nos grupos.
- * Hierarquia: akira > servant > assistant_normal > admin_tester > tester > default
+ * Hierarquia: akira > servant > admintester > tester > default
  * @param {string} userId - ID do usuário do Discord
  * @returns {string}
  */
 function getUserRole(userId) {
   if (!groups) loadUserGroups();
-  if (!userId) return 'default';
+  if (!userId) {
+    logger.debug('[GROUP RESOLUTION]', { userId: 'null', resolvedGroup: 'default', source: 'userGroupManager.js' });
+    return 'default';
+  }
 
   const id = userId.trim();
+  let resolvedGroup = 'default';
 
-  if (groups.akiraUsers.includes(id)) return 'akira';
-  if (groups.servantUsers.includes(id)) return 'servant';
-  if (groups.assistantNormalUsers.includes(id)) return 'assistant_normal';
-  if (groups.adminTesters.includes(id)) return 'admin_tester';
-  if (groups.testers.includes(id)) return 'tester';
+  if (groups.akiraUsers.includes(id)) {
+    resolvedGroup = 'akira';
+  } else if (groups.servantUsers.includes(id)) {
+    resolvedGroup = 'servant';
+  } else if (groups.adminTesters.includes(id)) {
+    resolvedGroup = 'admintester';
+  } else if (groups.testers.includes(id)) {
+    resolvedGroup = 'tester';
+  }
 
-  return 'default';
+  logger.info('[GROUP RESOLUTION]', { userId: id, resolvedGroup, source: 'userGroupManager.js' });
+  return resolvedGroup;
 }
 
 /**
@@ -243,7 +259,6 @@ function getAllGroups() {
   return {
     akiraUsers: [...groups.akiraUsers],
     servantUsers: [...groups.servantUsers],
-    assistantNormalUsers: [...groups.assistantNormalUsers],
     testers: [...groups.testers],
     adminTesters: [...groups.adminTesters],
   };

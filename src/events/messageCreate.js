@@ -8,7 +8,7 @@ const { getActionsForPrompt } = require('../ai/actionRegistry');
 const { resolveAction } = require('../ai/actionResolver');
 const { validateAction } = require('../ai/actionValidator');
 const actionExecutor = require('../ai/actionExecutor');
-const { tryParseStructuredResponse } = require('../ai/toolManager'); // Apenas para parsing
+const { tryParseStructuredResponse } = require('../ai/responseParser');
 const config = require('../config/config');
 const userGroupManager = require('../managers/userGroupManager');
 const testerUsageManager = require('../managers/testerUsageManager');
@@ -358,7 +358,8 @@ module.exports = {
         const groupName = cmdParts[1].toLowerCase();
         const groupKey = userGroupManager.resolveGroupKey(groupName);
         if (!groupKey) {
-          await message.reply('❌ Grupo inválido. Grupos: akira, servant, tester, admintester').catch(() => {});
+          const availableGroups = Object.keys(userGroupManager.GROUP_ALIASES).join(', ');
+          await message.reply(`❌ Grupo inválido. Grupos disponíveis: ${availableGroups}`).catch(() => {});
           return;
         }
         const members = userGroupManager.getGroup(groupName);
@@ -375,9 +376,10 @@ module.exports = {
       if (cmd === 'debug' && cmdParts[1] === 'role') {
         const role = userGroupManager.getUserRole(message.author.id);
         const personalityMap = {
+          akira: 'akira',
+          servant: 'servant',
           admintester: 'tester',
           tester: 'tester',
-          servant: 'servant',
           default: 'default'
         };
         await message.reply(
@@ -397,7 +399,7 @@ module.exports = {
           `• akira: ${allGroups.akiraUsers.length}\n` +
           `• servant: ${allGroups.servantUsers.length}\n` +
           `• testers: ${allGroups.testers.length}\n` +
-          `• admin_testers: ${allGroups.adminTesters.length}\n\n` +
+          `• admintesters: ${allGroups.adminTesters.length}\n\n` +
           `**Comandos disponíveis:**\n` +
           `• rp add <grupo> @user — adiciona a grupo\n` +
           `• rp remove <grupo> @user — remove de grupo\n` +
@@ -421,7 +423,7 @@ module.exports = {
           return;
         }
         const targetRole = userGroupManager.getUserRole(targetId);
-        const isAdminT = ADMIN_USERS.includes(targetId); // we assume no guild access for mention check right here
+        const isAdminT = ADMIN_USERS.includes(targetId);
         const allowedRs = ['akira', 'servant', 'tester', 'admintester'];
         const isAllowedT = isAdminT || allowedRs.includes(targetRole);
         let reason = isAdminT ? 'admin' : (allowedRs.includes(targetRole) ? targetRole : 'role_not_allowed');

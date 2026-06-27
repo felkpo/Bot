@@ -133,6 +133,14 @@ Sem sarcasmo, sem brincadeiras, sem expressões casuais.
 ${this._getServerContextSection()}`;
   }
 
+  _buildDefaultPersonality() {
+    return `## PERSONALIDADE — ASSISTENTE PADRÃO
+Você é a Royal Prussian, uma assistente de IA.
+Suas respostas devem ser úteis, diretas e profissionais.
+Use português do Brasil.
+${this._getServerContextSection()}`;
+  }
+
   _buildTesterPersonality() {
     return `## PERSONALIDADE — TESTER
 Você é uma persona de testes. Responda de forma simples e direta para validar a funcionalidade.
@@ -173,14 +181,25 @@ ${this._getServerContextSection()}`;
 
     switch (role) {
       case 'akira':
+        logger.info('[PERSONALITY RESOLUTION]', { group: role, personality: 'Akira', userId: context.userId });
         return this._buildAkiraPersonality();
       case 'servant':
+        logger.info('[PERSONALITY RESOLUTION]', { group: role, personality: 'Servant', userId: context.userId });
         return this._buildServantPersonality();
       case 'tester':
       case 'admintester':
+        logger.info('[PERSONALITY RESOLUTION]', { group: role, personality: 'Tester', userId: context.userId });
         return this._buildTesterPersonality();
       default:
-        return this._buildAkiraPersonality(); // Akira é o padrão
+        if (role !== 'default') {
+          logger.warn('[TENKAI LEGACY REMOVED]', {
+            message: 'Fallback de personalidade acionado para um grupo não padrão, possivelmente um resquício de "assistant_normal".',
+            group: role
+          });
+          logger.warn('[GROUP FALLBACK]', { userId: context.userId, reason: `Grupo '${role}' não mapeado para uma personalidade. Usando 'Default'.` });
+        }
+        logger.info('[PERSONALITY RESOLUTION]', { group: role, personality: 'Default (Royal Prussian)', userId: context.userId });
+        return this._buildDefaultPersonality();
     }
   }
 
