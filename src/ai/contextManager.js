@@ -1,30 +1,75 @@
-const sqlite = require('../db/sqlite');
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
+const path = require('path');
+const fs = require('fs');
 const config = require('../config/config');
 const logger = require('../utils/logger');
 
 const USER_HISTORY_LIMIT = config.AI.maxHistoryPerUser || 10;
 const CHANNEL_HISTORY_LIMIT = 20;
 
+// Lógica do banco de dados integrada para remover dependência legada
+const DB_DIR = path.join(__dirname, '..', '..', 'data');
+const DB_PATH = path.join(DB_DIR, 'memories.db'); // Corrigido para o nome de arquivo documentado
+
 class ContextManager {
   constructor() {
+    this.db = null;
+    this.initialized = this.initialize(); // Inicia a inicialização assíncrona
     this.userContexts = new Map();
     this.cooldowns = new Map();
   }
 
+  /**
+   * Inicializa a conexão com o banco de dados SQLite.
+   * Este método é chamado no construtor e seu promise é armazenado em this.initialized.
+   */
+  async initialize() {
+    try {
+      if (!fs.existsSync(DB_DIR)) {
+        fs.mkdirSync(DB_DIR, { recursive: true });
+        logger.info(`[DB] Diretório de dados criado em: ${DB_DIR}`);
+      }
+
+      this.db = await open({
+        filename: DB_PATH,
+        driver: sqlite3.Database
+      });
+
+      logger.info(`[DB] Conexão com SQLite estabelecida: ${DB_PATH}`);
+
+      // Executa a criação de tabelas (não falha se já existirem)
+      await this.db.exec(`
+        CREATE TABLE IF NOT EXISTS users ( user_id TEXT NOT NULL, guild_id TEXT NOT NULL, username TEXT, first_seen INTEGER, last_seen INTEGER, PRIMARY KEY (user_id, guild_id) );
+        CREATE TABLE IF NOT EXISTS channels ( channel_id TEXT PRIMARY KEY, guild_id TEXT NOT NULL, name TEXT, last_messages TEXT, updated_at INTEGER );
+        CREATE TABLE IF NOT EXISTS memories ( id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, user_id TEXT, type TEXT NOT NULL, key TEXT NOT NULL, value TEXT, source TEXT, relevance INTEGER DEFAULT 1, created_at INTEGER, updated_at INTEGER );
+        CREATE TABLE IF NOT EXISTS events ( id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, event_type TEXT, title TEXT, description TEXT, metadata TEXT, created_at INTEGER );
+        CREATE TABLE IF NOT EXISTS audits ( id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, action TEXT, actor_id TEXT, actor_tag TEXT, target_id TEXT, target_tag TEXT, reason TEXT, channel_id TEXT, metadata TEXT, created_at INTEGER );
+        CREATE TABLE IF NOT EXISTS summaries ( id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, channel_id TEXT, summary_type TEXT NOT NULL, content TEXT, updated_at INTEGER );
+      `);
+
+      logger.info('[DB] Schema do banco de dados verificado e pronto.');
+    } catch (err) {
+      logger.error('[DB] Falha fatal ao inicializar o banco de dados SQLite.', { error: err.message, stack: err.stack });
+      process.exit(1);
+    }
+  }
+
   async upsertUser(userId, guildId, username) {
+    await this.initialized;
     const now = Date.now();
-    const existing = await sqlite.get(
+    const existing = await this.db.get(
       'SELECT * FROM users WHERE user_id = ? AND guild_id = ?',
       [userId, guildId]
     );
 
     if (existing) {
-      await sqlite.run(
+      await this.db.run(
         'UPDATE users SET username = ?, last_seen = ? WHERE user_id = ? AND guild_id = ?',
         [username, now, userId, guildId]
       );
     } else {
-      await sqlite.run(
+      await this.db.run(
         'INSERT INTO users (user_id, guild_id, username, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)',
         [userId, guildId, username, now, now]
       );
@@ -32,7 +77,8 @@ class ContextManager {
   }
 
   async upsertChannel(channelId, guildId, name, newMessage) {
-    const existing = await sqlite.get('SELECT * FROM channels WHERE channel_id = ?', [channelId]);
+    await this.initialized;
+    const existing = await this.db.get('SELECT * FROM channels WHERE channel_id = ?', [channelId]);
     let lastMessages = [];
 
     if (existing && existing.last_messages) {
@@ -52,12 +98,12 @@ class ContextManager {
     const now = Date.now();
 
     if (existing) {
-      await sqlite.run(
+      await this.db.run(
         'UPDATE channels SET name = ?, last_messages = ?, updated_at = ? WHERE channel_id = ?',
         [name, serialized, now, channelId]
       );
     } else {
-      await sqlite.run(
+      await this.db.run(
         'INSERT INTO channels (channel_id, guild_id, name, last_messages, updated_at) VALUES (?, ?, ?, ?, ?)',
         [channelId, guildId, name, serialized, now]
       );
@@ -65,19 +111,20 @@ class ContextManager {
   }
 
   async storeUserFact(userId, guildId, key, value, source = 'message') {
+    await this.initialized;
     const now = Date.now();
-    const existing = await sqlite.get(
+    const existing = await this.db.get(
       'SELECT * FROM memories WHERE guild_id = ? AND user_id = ? AND type = ? AND key = ?',
       [guildId, userId, 'fact', key]
     );
 
     if (existing) {
-      await sqlite.run(
+      await this.db.run(
         'UPDATE memories SET value = ?, source = ?, relevance = relevance + 1, updated_at = ? WHERE id = ?',
         [value, source, now, existing.id]
       );
     } else {
-      await sqlite.run(
+      await this.db.run(
         'INSERT INTO memories (guild_id, user_id, type, key, value, source, relevance, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [guildId, userId, 'fact', key, value, source, 1, now, now]
       );
@@ -87,8 +134,9 @@ class ContextManager {
   }
 
   async storeEvent(guildId, eventType, title, description, metadata = {}) {
+    await this.initialized;
     const now = Date.now();
-    await sqlite.run(
+    await this.db.run(
       'INSERT INTO events (guild_id, event_type, title, description, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       [guildId, eventType, title, description, JSON.stringify(metadata), now]
     );
@@ -98,8 +146,9 @@ class ContextManager {
   }
 
   async logAuditAction(guildId, action, actorId, actorTag, targetId, targetTag, reason, channelId, metadata = {}) {
+    await this.initialized;
     const now = Date.now();
-    await sqlite.run(
+    await this.db.run(
       'INSERT INTO audits (guild_id, action, actor_id, actor_tag, target_id, target_tag, reason, channel_id, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [guildId, action, actorId, actorTag, targetId, targetTag, reason, channelId, JSON.stringify(metadata), now]
     );
@@ -115,7 +164,8 @@ class ContextManager {
   }
 
   async updateChannelSummary(channelId, guildId) {
-    const channelRow = await sqlite.get('SELECT * FROM channels WHERE channel_id = ?', [channelId]);
+    await this.initialized;
+    const channelRow = await this.db.get('SELECT * FROM channels WHERE channel_id = ?', [channelId]);
     if (!channelRow || !channelRow.last_messages) return;
 
     let messages = [];
@@ -128,7 +178,7 @@ class ContextManager {
     const summary = this.createChannelSummary(messages);
     const now = Date.now();
 
-    await sqlite.run(
+    await this.db.run(
       'INSERT INTO summaries (guild_id, channel_id, summary_type, content, updated_at) VALUES (?, ?, ?, ?, ?)',
       [guildId, channelId, 'channel', summary, now]
     );
@@ -137,12 +187,13 @@ class ContextManager {
   }
 
   async updateServerSummary(guildId) {
-    const channelSummaries = await sqlite.all(
+    await this.initialized;
+    const channelSummaries = await this.db.all(
       'SELECT content FROM summaries WHERE guild_id = ? AND summary_type = ?',
       [guildId, 'channel']
     );
 
-    const eventRows = await sqlite.all('SELECT * FROM events WHERE guild_id = ? ORDER BY created_at DESC LIMIT 5', [guildId]);
+    const eventRows = await this.db.all('SELECT * FROM events WHERE guild_id = ? ORDER BY created_at DESC LIMIT 5', [guildId]);
     const eventSummary = eventRows.map(event => `• [${event.event_type}] ${event.title}`).join('\n');
     const channelSummaryText = channelSummaries.map(row => row.content).join('\n');
 
@@ -151,7 +202,7 @@ ${eventSummary || 'Sem eventos recentes.'}
 ${channelSummaryText ? `\nTópicos recentes: ${channelSummaryText}` : ''}`;
     const now = Date.now();
 
-    await sqlite.run(
+    await this.db.run(
       'INSERT INTO summaries (guild_id, channel_id, summary_type, content, updated_at) VALUES (?, NULL, ?, ?, ?)',
       [guildId, 'server', serverSummary, now]
     );
@@ -179,13 +230,15 @@ ${channelSummaryText ? `\nTópicos recentes: ${channelSummaryText}` : ''}`;
   }
 
   async getUserFacts(userId, guildId) {
-    return sqlite.all(
+    await this.initialized;
+    return this.db.all(
       'SELECT key, value FROM memories WHERE guild_id = ? AND user_id = ? AND type = ? ORDER BY relevance DESC',
       [guildId, userId, 'fact']
     );
   }
 
   async getUserMemorySummary(userId, guildId) {
+    await this.initialized;
     const facts = await this.getUserFacts(userId, guildId);
     if (!facts.length) return '';
 
@@ -196,7 +249,8 @@ ${channelSummaryText ? `\nTópicos recentes: ${channelSummaryText}` : ''}`;
   }
 
   async getChannelMemorySummary(channelId) {
-    const summaryRow = await sqlite.get(
+    await this.initialized;
+    const summaryRow = await this.db.get(
       'SELECT content FROM summaries WHERE channel_id = ? AND summary_type = ?',
       [channelId, 'channel']
     );
@@ -204,7 +258,8 @@ ${channelSummaryText ? `\nTópicos recentes: ${channelSummaryText}` : ''}`;
   }
 
   async getServerMemorySummary(guildId) {
-    const summaryRow = await sqlite.get(
+    await this.initialized;
+    const summaryRow = await this.db.get(
       'SELECT content FROM summaries WHERE guild_id = ? AND summary_type = ? ORDER BY updated_at DESC LIMIT 1',
       [guildId, 'server']
     );
