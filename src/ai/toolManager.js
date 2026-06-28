@@ -626,111 +626,6 @@ function formatConfirmation(action, target, reason, extra = '') {
   return description;
 }
 
-function tryParseStructuredResponse(text) {
-  const arquivo = 'src/ai/toolManager.js';
-  const funcao = 'tryParseStructuredResponse';
-
-  if (!text || typeof text !== 'string') {
-    logger.info('[ACTION PARSER]', {
-      arquivo,
-      funcao,
-      respostaBruta: text,
-      formato: 'null ou não string',
-      motivo: 'text é null ou não é string',
-      resultado: null
-    });
-    return null;
-  }
-
-  // [ACTION RAW RESPONSE] — resposta bruta antes de qualquer limpeza
-  logger.info('[ACTION RAW RESPONSE]', {
-    arquivo,
-    funcao,
-    rawResponse: text.substring(0, 500),
-    rawLength: text.length
-  });
-
-  let candidate = text.trim();
-  let formato = 'texto puro';
-
-  // Detecta bloco markdown JSON
-  const markdownMatch = candidate.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (markdownMatch) {
-    candidate = markdownMatch[1].trim();
-    formato = 'markdown JSON';
-  }
-
-  // Remove ```json / ``` residuais
-  candidate = candidate.replace(/```json/gi, '').replace(/```/g, '').trim();
-
-  // Tenta extrair o primeiro objeto JSON { ... }
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start !== -1 && end !== -1 && end > start) {
-    candidate = candidate.slice(start, end + 1);
-    if (formato === 'texto puro') formato = 'JSON extraído do texto';
-  }
-
-  // [ACTION CLEAN RESPONSE] — após extração do JSON, antes do parse
-  logger.info('[ACTION CLEAN RESPONSE]', {
-    arquivo,
-    funcao,
-    formato,
-    cleanCandidate: candidate.substring(0, 300),
-    cleanLength: candidate.length
-  });
-
-  try {
-    const parsed = JSON.parse(candidate);
-
-    logger.info('[ACTION PARSER]', {
-      arquivo,
-      funcao,
-      acaoExtraida: parsed.action,
-      argumentosExtraidos: parsed,
-      formato: parsed.action ? `JSON com action=${parsed.action}` : 'JSON sem action',
-      resultado: 'sucesso'
-    });
-
-    return parsed;
-  } catch (error) {
-    logger.warn('[ACTION PARSER ERROR]', {
-      arquivo,
-      funcao,
-      motivo: 'JSON.parse falhou',
-      formato,
-      candidatePreview: candidate.substring(0, 300),
-      erro: error.message
-    });
-
-    // Última tentativa: procurar qualquer JSON no texto
-    try {
-      const jsonMatch = candidate.match(/\{[^{}]*"action"\s*:\s*"[^"]*"[^{}]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        logger.info('[ACTION PARSER] fallback: JSON extraído via regex', {
-          arquivo,
-          funcao,
-          acaoExtraida: parsed.action,
-          argumentosExtraidos: parsed,
-          formato: 'regex fallback'
-        });
-        return parsed;
-      }
-    } catch (_) {}
-
-    logger.info('[ACTION PARSER]', {
-      arquivo,
-      funcao,
-      formato,
-      resultado: null,
-      motivo: 'nenhum JSON encontrado na resposta'
-    });
-
-    return null;
-  }
-}
-
 function resolveChannel(parsedChannel, message) {
   if (!parsedChannel) return message.channel;
 
@@ -1791,7 +1686,6 @@ async function executeToolAction(parsedAction, message) {
 }
 
 module.exports = {
-  tryParseStructuredResponse,
   executeToolAction,
   getMissingParameterStats,
   getActionMetrics,
