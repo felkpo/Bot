@@ -113,8 +113,16 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Regex universal para detectar verbos de ação no início de uma mensagem.
+ * Usado para classificar se uma mensagem é um pedido de execução de ação (tool use).
+ * Arquivo: src/utils/regex.js
+ */
+const UNIVERSAL_ACTION_VERBS_REGEX = /^(banir|expulsar|kickar|chutar|mutar|silenciar|punir|limpar|apagar|deletar|adicionar|remover|setar|definir|modificar|listar|criar|ver|mostrar|auditar|consultar|ajuda|enviar|falar|tocar|mover|avisar)\b/i;
+
 module.exports = {
   shouldActivateAI,
   stripPrefix,
-  escapeRegex
+  escapeRegex,
+  UNIVERSAL_ACTION_VERBS_REGEX
 };
