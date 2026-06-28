@@ -1,5 +1,5 @@
-const { isAdmin } = require('../../utils/helpers');
-const userGroupManager = require('../../managers/userGroupManager');
+const { isAdmin } = require('../../../utils/helpers');
+const userGroupManager = require('../../../managers/userGroupManager');
 
 module.exports = {
   metadata: {
