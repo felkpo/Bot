@@ -3,7 +3,6 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const aiProvider = require('../ai/provider');
 const contextManager = require('../managers/contextManager');
-const { shouldActivateAI, stripPrefix, UNIVERSAL_ACTION_VERBS_REGEX } = require('../utils/regex');
 const { getActionsForPrompt } = require('../ai/actionRegistry');
 const { resolveAction } = require('../ai/actionResolver');
 const { validateAction } = require('../ai/actionValidator');
@@ -214,6 +213,9 @@ module.exports = {
     });
 
     try {
+      // Lazy-load regex module to prevent circular dependency at startup
+      const { shouldActivateAI, stripPrefix, UNIVERSAL_ACTION_VERBS_REGEX } = require('../utils/regex');
+
       const content = message.content;
       const isMentioned = message.mentions.has(message.client.user.id);
 
