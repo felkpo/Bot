@@ -1689,5 +1689,8 @@ module.exports = {
   executeToolAction,
   getMissingParameterStats,
   getActionMetrics,
-  resetMissingParameterStats
+  resetMissingParameterStats,
+  // Exportando funções de estatísticas para uso no novo pipeline
+  recordExecution,
+  recordFailure
 };

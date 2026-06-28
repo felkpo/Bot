@@ -16,7 +16,7 @@ const guildSettingsManager = require('../managers/guildSettingsManager');
 const auditMemoryManager = require('../managers/auditMemoryManager');
 const { generateHelpEmbed } = require('../utils/helpGenerator');
 const { resolveTarget } = require('../utils/helpers');
-const actionStatsManager = require('../managers/actionStatsManager');
+const { recordExecution, recordFailure } = require('../ai/toolManager');
 const fs = require('fs');
 const path = require('path');
 
@@ -1306,7 +1306,7 @@ module.exports = {
           // ══════════════════════════════════════════════════════════════════
           let actionResult = { success: false, error: 'Ação não pôde ser processada.' };
           try {
-            actionStatsManager.recordExecution(parsedAction.action);
+            recordExecution(parsedAction.action);
             // 1. RESOLVER: Encontra a definição da action no registry
             const actionDefinition = resolveAction(parsedAction.action);
             if (!actionDefinition) {
@@ -1338,7 +1338,7 @@ module.exports = {
               error: error.message,
               stack: error.stack.substring(0, 300)
             });
-            actionStatsManager.recordFailure(parsedAction.action);
+            recordFailure(parsedAction.action);
             actionResult = { success: false, error: error.message };
           }
           
