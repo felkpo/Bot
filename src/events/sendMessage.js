@@ -1,4 +1,4 @@
-const { isAdmin } = require('../utils/helpers');
+const { isAdmin } = require('../../utils/helpers');
 
 module.exports = {
   metadata: {

@@ -2,13 +2,13 @@ const { Events, ChannelType } = require('discord.js');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 const aiProvider = require('../ai/provider');
-const contextManager = require('../ai/contextManager');
+const contextManager = require('../managers/contextManager');
 const { shouldActivateAI, stripPrefix, UNIVERSAL_ACTION_VERBS_REGEX } = require('../utils/regex');
 const { getActionsForPrompt } = require('../ai/actionRegistry');
 const { resolveAction } = require('../ai/actionResolver');
 const { validateAction } = require('../ai/actionValidator');
 const actionExecutor = require('../ai/actionExecutor');
-const { tryParseStructuredResponse } = require('./responseParser');
+const { tryParseStructuredResponse } = require('../ai/responseParser');
 const config = require('../config/config');
 const userGroupManager = require('../managers/userGroupManager');
 const testerUsageManager = require('../managers/testerUsageManager');
@@ -16,7 +16,7 @@ const guildSettingsManager = require('../managers/guildSettingsManager');
 const auditMemoryManager = require('../managers/auditMemoryManager');
 const { generateHelpEmbed } = require('../utils/helpGenerator');
 const { resolveTarget } = require('../utils/helpers');
-const { recordExecution, recordFailure } = require('../ai/toolManager');
+const { recordExecution, recordFailure } = require('../managers/actionStatsManager');
 const fs = require('fs');
 const path = require('path');
 
@@ -380,8 +380,7 @@ module.exports = {
           akira: 'akira',
           servant: 'servant',
           admintester: 'tester',
-          tester: 'tester',
-          default: 'default'
+          tester: 'tester'
         };
         await message.reply(
           `**User ID:** ${message.author.id}\n` +
@@ -425,7 +424,7 @@ module.exports = {
         }
         const targetRole = userGroupManager.getUserRole(targetId);
         const isAdminT = ADMIN_USERS.includes(targetId);
-        const allowedRs = ['akira', 'servant', 'tester', 'admintester'];
+        const allowedRs = ['akira', 'servant', 'tester', 'admintester', 'owner', 'developer'];
         const isAllowedT = isAdminT || allowedRs.includes(targetRole);
         let reason = isAdminT ? 'admin' : (allowedRs.includes(targetRole) ? targetRole : 'role_not_allowed');
         await message.reply(

@@ -14,8 +14,7 @@ const logger = require('../utils/logger');
 const { registerAction } = require('../ai/actionRegistry');
 
 const ACTION_DIRECTORIES = [
-  path.join(__dirname, '..', 'actions'),
-  path.join(__dirname, '..', 'events'), // As definições de Actions estão neste diretório
+  path.join(__dirname, '..', 'actions'), // Único diretório para Actions
   path.join(__dirname, '..', '..', 'plugins'),
 ];
 
